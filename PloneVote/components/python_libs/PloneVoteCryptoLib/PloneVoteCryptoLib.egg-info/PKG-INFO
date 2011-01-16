@@ -1,0 +1,11 @@
+Metadata-Version: 1.0
+Name: PloneVoteCryptoLib
+Version: 0.0.1dev
+Summary: Basic cryptographic library for the PloneVote verifiable online voting system.
+Home-page: http://ToDo/set/a/web/page.html
+Author: Lázaro Clapp
+Author-email: lazaro.clapp@gmail.com
+License: BSD
+Description: This library provides all basic cryptographic operations required by the PloneVote verifiable online voting system.cription)
+Keywords: cryptography,voting,library,PloneVote
+Platform: UNKNOWN
