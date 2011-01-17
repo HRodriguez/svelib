@@ -108,3 +108,54 @@ class KeyLengthNonBytableError(ParameterError):
         ParameterError.__init__(self, msg)
 
 
+class NotASafePrimeError(ParameterError):
+    """
+    Given number is not a safe prime.
+    
+    Exception raised when a number claimed to be a safe prime for an ElGamal 
+    scheme is not really a safe prime. 
+
+    Attributes:
+    	num::int	-- the given number
+        msg::string	-- explanation of the error
+    """
+
+    def __init__(self, num, msg):
+    	"""Create a new NotASafePrimeError exception
+    	
+    	Arguments:
+    		num::int	-- the given number
+		    msg::string	-- explanation of the error
+    	"""
+    	self.num = num
+        ParameterError.__init__(self, msg)
+
+
+class NotAGeneratorError(ParameterError):
+    """
+    Given number is not a generator.
+    
+    Exception raised when a number claimed to be a generator for an ElGamal 
+    scheme with a certain prime is not really a generator. 
+
+    Attributes:
+    	prime::int	-- the prime defining the Z_{p}^{*} cyclic group of which 
+    				   a generator was sought
+    	num::int	-- the given number
+        msg::string	-- explanation of the error
+    """
+
+    def __init__(self, prime, num, msg):
+    	"""Create a new NotAGeneratorError exception
+    	
+    	Arguments:
+			prime::int	-- the prime defining the Z_{p}^{*} cyclic group of  
+						   which a generator was sought
+			num::int	-- the given number
+		    msg::string	-- explanation of the error
+    	"""
+    	self.prime = prime
+    	self.num = num
+        ParameterError.__init__(self, msg)
+
+
