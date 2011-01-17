@@ -6,7 +6,7 @@
 #
 #  Originally written by: Lazaro Clapp
 #
-# ===================================================================
+# ============================================================================
 # LICENSE (MIT License - http://www.opensource.org/licenses/mit-license):
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,7 +26,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-# ===================================================================
+# ============================================================================
 
 class ParameterError(Exception):
     """
@@ -41,9 +41,6 @@ class ParameterError(Exception):
 
     def __init__(self, msg):
     	"""Create a new ParameterError exception
-    	
-    	Arguments:
-        	msg::string	-- explanation of the error
     	"""
         self.msg = msg
 
@@ -67,13 +64,6 @@ class KeyLengthTooLowError(ParameterError):
 
     def __init__(self, given_size, minimum_size, msg):
     	"""Create a new KeyLengthTooLowError exception
-    	
-    	Arguments:
-			given_size::int		-- the (invalid) key or cryptosystem bit size  
-						 	  	   requested by the user
-			minimum_size::int	-- the minimum key or cryptosystem bit size 
-								   allowed
-		    msg::string			-- explanation of the error
     	"""
     	self.given_size = given_size
     	self.minimum_size = minimum_size
@@ -98,13 +88,23 @@ class KeyLengthNonBytableError(ParameterError):
 
     def __init__(self, given_size, msg):
     	"""Create a new KeyLengthNonBytableError exception
-    	
-    	Arguments:
-			given_size::int		-- the (invalid) key or cryptosystem bit size  
-						 	  	   requested by the user
-		    msg::string			-- explanation of the error
     	"""
     	self.given_size = given_size
+        ParameterError.__init__(self, msg)
+
+
+class KeyLengthMismatch(ParameterError):
+    """
+    Given key length and the length of a parameter, such as the crypsystem's 
+    prime, do not match.
+
+    Attributes:
+        msg::string			-- explanation of the error
+    """
+
+    def __init__(self, msg):
+    	"""Create a new KeyLengthMismatch exception
+    	"""
         ParameterError.__init__(self, msg)
 
 
@@ -122,10 +122,6 @@ class NotASafePrimeError(ParameterError):
 
     def __init__(self, num, msg):
     	"""Create a new NotASafePrimeError exception
-    	
-    	Arguments:
-    		num::int	-- the given number
-		    msg::string	-- explanation of the error
     	"""
     	self.num = num
         ParameterError.__init__(self, msg)
@@ -147,15 +143,30 @@ class NotAGeneratorError(ParameterError):
 
     def __init__(self, prime, num, msg):
     	"""Create a new NotAGeneratorError exception
-    	
-    	Arguments:
-			prime::int	-- the prime defining the Z_{p}^{*} cyclic group of  
-						   which a generator was sought
-			num::int	-- the given number
-		    msg::string	-- explanation of the error
     	"""
     	self.prime = prime
     	self.num = num
+        ParameterError.__init__(self, msg)
+
+
+class InvalidPloneVoteCryptoFileError(ParameterError):
+    """
+    The given file is not a valid PloneVoteCryptoLib file of the expected type. 
+    
+    This exception should be raised when an incorrectly formated XML file is 
+    given to the functions or methods for decoding stored PVCL information, 
+    such as: cryptosystem instances, public keys, private keys and encrypted 
+    cypertexts.
+
+    Attributes:
+    	filename::string	-- the name of the invalid file
+        msg::string			-- explanation of the error
+    """
+
+    def __init__(self, filename, msg):
+    	"""Create a new InvalidPloneVoteCryptoFileError exception
+    	"""
+    	self.filename = filename
         ParameterError.__init__(self, msg)
 
 

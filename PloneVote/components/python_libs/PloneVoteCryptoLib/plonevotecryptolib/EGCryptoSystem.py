@@ -43,6 +43,8 @@
 # Imports and constant definitions:
 # ============================================================================
 
+import xml.dom.minidom
+
 # We use pycrypto (>= 2.1.0) to generate probable primes (pseudo-primes that 
 # are real primes with a high probability) and cryptographically secure random 
 # numbers. Note that pycrypto < 2.1.0 uses a different (ostensibly broken) 
@@ -188,8 +190,8 @@ def _is_generator(p, g):
 			True	if g is a generator of Z_{p}^{*}
 			False	otherwise
 		"""
-		if(params.DEBUG):
-			assert 1 <= g <= (p - 1), "g must be an element in Z_{p}^{*}."
+		if(not (1 <= g <= (p - 1))):	# g must be an element in Z_{p}^{*}
+			return False
 		
 		q = (p - 1) / 2		# Since p = 2q + 1
 		if(pow(g, 2, p) == 1):
@@ -269,7 +271,7 @@ class EGCryptoSystem:
 	
 	This class is used to instantiate compatible (private + public) key pairs. 
 	That is, key pairs in which the public keys can be merged into one combined 
-	public key of a threshold-encryption scheme.
+	public key for a threshold-encryption scheme.
 	
 	The crypto system used also determines the cryptographic strength of the 
 	generated keys, by specifying the bit size used for all keys (aka. the 
@@ -279,8 +281,6 @@ class EGCryptoSystem:
 	EGCryptoSystem may not be constructed through the __init__ constructor. It 
 	must be created through one of its factory class methods, such as new() or
 	load(nbits, prime, generator).
-	
-	USAGE: (ToDo)
 	"""
 	
 	_nbits = None
@@ -288,24 +288,21 @@ class EGCryptoSystem:
 	_generator = None
 	
 	_constructed = False;
-	
-	
+		
 	def get_nbits(self):
 		"""
 		Return the number of bits used for the key size by this ElGamal instance.
 		"""
 		if(not self._constructed): raise EGCSUnconstructedStateError()
 		return self._nbits	
-	
-	
+		
 	def get_prime(self):
 		"""
 		Return the prime p used for the key size by this ElGamal instance.
 		"""
 		if(not self._constructed): raise EGCSUnconstructedStateError()
 		return self._prime	
-	
-	
+		
 	def get_generator(self):
 		"""
 		Return the generator used for the key size by this ElGamal instance.
@@ -315,8 +312,7 @@ class EGCryptoSystem:
 		"""
 		if(not self._constructed): raise EGCSUnconstructedStateError()
 		return self._generator
-		
-	
+			
 	@classmethod	
 	def _verify_key_size(cls, nbits):
 		"""
@@ -362,7 +358,6 @@ class EGCryptoSystem:
 				"bit keys?" % (nbits, (nbits/8 + 1)*8) )
 				
 		return nbits
-
 	
 	def __init__(self):
 		"""
@@ -381,8 +376,7 @@ class EGCryptoSystem:
 								   prime p and generator g. Verifies parameters.
 		"""
 		pass
-		
-	
+			
 	@classmethod
 	def new(cls, nbits=params.DEFAULT_KEY_SIZE):
 		"""
@@ -399,6 +393,7 @@ class EGCryptoSystem:
 						   ElGamal scheme. Higher is safer but slower.
 						   Must be a multiple of eight (ie. expressible in bytes).
 						   Defaults to params.DEFAULT_KEY_SIZE.
+						   
 	    Throws:
 	    	KeyLengthTooLowError	-- If nbits is smaller than 
 	    							   params.MINIMUM_KEY_SIZE.
@@ -421,8 +416,7 @@ class EGCryptoSystem:
 		
 		# Return the EGCryptoSystem instance
 		return cryptosystem
-		
-	
+			
 	@classmethod
 	def load(cls, nbits, prime, generator):
 		"""
@@ -441,6 +435,15 @@ class EGCryptoSystem:
 			prime::long -- A nbits-long safe prime 
 						   (that is (prime-1)/2 is also prime).
 			generator:long -- A generator of the Z_{p}^{*} cyclic group.
+						   
+	    Throws:
+	    	KeyLengthTooLowError	-- If nbits is smaller than 
+	    							   params.MINIMUM_KEY_SIZE.
+	    	KeyLengthNonBytableError -- If nbits is not a multiple of 8.
+	    	KeyLengthMismatch		-- If the prime is not an nbits long number.
+	    	NotASafePrimeError		-- If prime is not a safe prime
+	    	NotAGeneratorError		-- If generator is not a generator of 
+	    							   Z_{p}^{*}
 		"""
 		
 		# Call empty class constructor
@@ -448,6 +451,13 @@ class EGCryptoSystem:
 		
 		# Verify the key size
 		cryptosystem._nbits = cls._verify_key_size(nbits)
+		
+		# Verify the size of prime
+		if(not (2**(nbits - 1) <= prime <= 2**nbits)):
+			raise KeyLengthMismatch(
+					"The number given as the cryptosystem's prime (%d) is " \
+					"not of the specified cryptosystem's bit size (%d)." \
+					% (prime, nbits))
 		
 		# Verify that prime is a safe prime
 		if(_is_safe_prime(prime)):
@@ -461,7 +471,7 @@ class EGCryptoSystem:
 		if(_is_generator(prime, generator)):
 			cryptosystem._generator = generator
 		else:
-			raise NotAGeneratorError(prime, num,
+			raise NotAGeneratorError(prime, generator,
 				"The number given as generator g for the ElGamal cryptosystem " \
 				"is not a generator of Z_{p}^{*}.")
 		
@@ -470,6 +480,310 @@ class EGCryptoSystem:
 		
 		# Return the EGCryptoSystem instance
 		return cryptosystem
+		
+	def to_stub(self, name, description):
+		"""
+		Creates an EGStub object from the current cryptosystem.
+		
+		Arguments:
+			name::string	-- Short name of the cryptosystem.
+			description::string	-- Description of the cryptosystem.
+		"""
+		return EGStub(name, description, self._nbits, self._prime, 
+					  self._generator)
+		
+	def to_file(self, name, description, filename):
+		"""
+		Saves the current cryptosystem to a file.
+		
+		The file can then be loaded from this class with the load_from_file 
+		class method, or as an EGStub to avoid the overhead of verifying the 
+		cryptosystem parameters.
+		
+		A name and description must be stored within the file.
+		"""
+		self.to_stub(name, description).to_file(filename)
+		
+	@classmethod
+	def load_from_file(self, filename):
+		"""
+		Loads an instance of the cryptosystem from the given file.
+		
+		This verifies the stored cryptosystem's parameters for correctness and 
+		security. May throw any exception thrown by .load() if the stored 
+		parameters are invalid.
+		"""
+		return EGStub.from_file(filename).to_cryptosystem()
+	
 
+class EGStub:
+	"""
+	Represents an unverified set of parameters for an ElGamal scheme.
+	
+	EGStub is used to record, store and examine the parameters of an ElGamal 
+	cryptosystem in a way that requires no verification overhead.
+	
+	EGStub can be used to store and load EGCryptoSystem instances from and to 
+	.pvcryptosys XML files, as well as examine the parameters described in 
+	those files. ElGamal parameters are verified for correctness and strength 
+	only when the EGStub is unpacked into an EGCryptoSystem instance that can 
+	be used to produce a key pair.
+	
+	Attributes:
+		name::string	-- Short name of the stored/to_store cryptosystem.
+		description::string	-- Description of the cryptosystem.
+		nbits::int		-- Bit size to use for the cryptosystem.
+		prime::long 	-- The nbits-long safe prime.
+		generator:long 	-- The generator.
+	"""
+	
+	def is_secure(self):
+		"""
+		Checks whether the cryptosystem described by the EGStub is secure.
+		
+		This only verifies that the length in bits given is a multiple of eight 
+		and at least as large as the minimum size set for the system.
+		"""
+		return (self.nbits % 8 == 0) and (self.nbits >= params.MINIMUM_KEY_SIZE)
+	
+	def __init__(self, name, description, nbits, prime, generator):
+		"""
+		Creates a new EGStub with the given parameters.
+		"""
+		self.name = name
+		self.description = description
+		self.nbits = nbits
+		self.prime = prime
+		self.generator = generator
+	
+	def to_cryptosystem(self):
+		"""
+		Unpack the EGStub into a full cryptosystem.
+		
+		This method obtains an EGCryptoSystem from the current EGStub instance, 
+		verifying the correctness and security of the parameters in the process. 
+		The resulting EGCryptoSystem can then be used to generate a private 
+		and public key pair to use for encryption/decryption.
+		
+		Returns:
+			cryptosys::EGCryptoSystem	-- A verified cryptosystem using the 
+										   security parameters described by 
+										   this stub
+						   
+	    Throws:
+	    	KeyLengthTooLowError	-- If nbits is smaller than 
+	    							   params.MINIMUM_KEY_SIZE.
+	    	KeyLengthNonBytableError -- If nbits is not a multiple of 8.
+	    	KeyLengthMismatch		-- If the prime is not an nbits long number.
+	    	NotASafePrimeError		-- If prime is not a safe prime
+	    	NotAGeneratorError		-- If generator is not a generator of 
+	    							   Z_{p}^{*}
+		"""
+		return EGCryptoSystem.load(self.nbits, self.prime, self.generator)
+		
+	def _to_xml(self):
+		"""
+		Returns an xml document containing a representation of this EGStub.
+		
+		Returns:
+			doc::xml.dom.minidom.Document
+		"""
+		doc = xml.dom.minidom.Document()
+		root_element = doc.createElement("PloneVoteCryptoSystem")
+		doc.appendChild(root_element)
+		
+		name_element = doc.createElement("name")
+		name_element.appendChild(doc.createTextNode(self.name))
+		root_element.appendChild(name_element)
+		
+		description_element = doc.createElement("description")
+		description_element.appendChild(doc.createTextNode(self.description))
+		root_element.appendChild(description_element)
+		
+		cs_scheme_element = doc.createElement("CryptoSystemScheme")
+		root_element.appendChild(cs_scheme_element)
+		
+		nbits_element = doc.createElement("nbits")
+		nbits_element.appendChild(doc.createTextNode(str(self.nbits)))
+		cs_scheme_element.appendChild(nbits_element)
+		
+		prime_element = doc.createElement("prime")
+		prime_str = hex(self.prime)[2:]		# Remove leading '0x'
+		if(prime_str[-1] == 'L'): 
+			prime_str = prime_str[0:-1]		# Remove trailing 'L'
+		prime_element.appendChild(doc.createTextNode(prime_str))
+		cs_scheme_element.appendChild(prime_element)
+		
+		generator_element = doc.createElement("generator")
+		generator_str = hex(self.generator)[2:]		# Remove leading '0x'
+		if(generator_str[-1] == 'L'): 
+			generator_str = generator_str[0:-1]		# Remove trailing 'L'
+		generator_element.appendChild(doc.createTextNode(generator_str))
+		cs_scheme_element.appendChild(generator_element)
+		
+		return doc
+		
+	def to_file(self, filename):
+		"""
+		Stores this instance of EGStub (as XML) in the given file.
+		"""
+		doc = self._to_xml()
+		
+		file_object = open(filename, "w")
+		file_object.write(doc.toprettyxml())
+		file_object.close()
+	
+	@classmethod
+	def parse_crytosystem_scheme_xml_node(cls, cs_scheme_element):
+		"""
+		Parse a CryptoSystemScheme XML node.
+		
+		Multiple PloneVoteCryptoLib storage formats include a 
+		CryptoSystemScheme node containing the details of the cryptosystem 
+		instance to use. This class method parses such node and returns a 
+		tuple (nbits, prime, generator).
+		
+		Arguments:
+			cs_scheme_element	-- An dom node pointing to a CryptoSystemScheme 
+								   XML node
+		
+		Returns:
+			(nbits, prime, generator)::(int, long, long)
+		"""
+		nbits_element = prime_element = generator_element = None
+		
+		for node in cs_scheme_element.childNodes:
+			if node.nodeType == node.ELEMENT_NODE:
+				if node.localName == "nbits":
+					nbits_element = node
+				elif node.localName == "prime":
+					prime_element = node
+				elif node.localName == "generator":
+					generator_element = node
+		
+		# Get nbits
+		if(nbits_element == None):
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"The <CryptoSystemScheme> specification must include the " \
+				"cryptosystem instance's key size in bits")
+				
+		if(len(nbits_element.childNodes) != 1 or 
+			nbits_element.childNodes[0].nodeType != nbits_element.childNodes[0].TEXT_NODE):
+			
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"The <CryptoSystemScheme> specification must include the " \
+				"cryptosystem instance's key size in bits")
+		
+		nbits_str = nbits_element.childNodes[0].data.strip()	# trim spaces
+		nbits = int(nbits_str)
+		
+		# Get prime
+		if(prime_element == None):
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"The <CryptoSystemScheme> specification must include the " \
+				"cryptosystem instance's prime")
+				
+		if(len(prime_element.childNodes) != 1 or 
+			prime_element.childNodes[0].nodeType != prime_element.childNodes[0].TEXT_NODE):
+			
+			raise InvalidPloneVoteCryptoFileError(filename,  
+				"The <CryptoSystemScheme> specification must include the " \
+				"cryptosystem instance's prime")
+		
+		prime_str = prime_element.childNodes[0].data.strip()
+		prime = int(prime_str, 16)	# From hexadecimal representation
+		
+		# Get generator
+		if(generator_element == None):
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"The <CryptoSystemScheme> specification must include the " \
+				"cryptosystem instance's generator")
+				
+		if(len(generator_element.childNodes) != 1 or 
+			generator_element.childNodes[0].nodeType != generator_element.childNodes[0].TEXT_NODE):
+			
+			raise InvalidPloneVoteCryptoFileError(filename,  
+				"The <CryptoSystemScheme> specification must include the " \
+				"cryptosystem instance's generator")
+		
+		generator_str = generator_element.childNodes[0].data.strip()
+		generator = int(generator_str, 16)
+		
+		return (nbits, prime, generator)
+		
+	@classmethod
+	def from_file(cls, filename):
+		"""
+		Loads an instance of EGStub from the given file.
+		"""
+		doc = xml.dom.minidom.parse(filename)
+		
+		# Check root element
+		if(len(doc.childNodes) != 1 or 
+			doc.childNodes[0].nodeType != doc.childNodes[0].ELEMENT_NODE or
+			doc.childNodes[0].localName != "PloneVoteCryptoSystem"):
+			
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"A PloneVoteCryptoLib stored cryptosystem file must be an " \
+				"XML file with PloneVoteCryptoSystem as its root element.")	
+		
+		root_element = doc.childNodes[0]
+		cs_scheme_element = description_element = name_element = None
+		
+		# Retrieve individual "tier 2" nodes
+		for node in root_element.childNodes:
+			if node.nodeType == node.ELEMENT_NODE:
+				if node.localName == "name":
+					name_element = node
+				elif node.localName == "description":
+					description_element = node
+				elif node.localName == "CryptoSystemScheme":
+					cs_scheme_element = node
+		
+		# Check name
+		if(name_element == None):
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"A PloneVoteCryptoLib stored cryptosystem file must contain " \
+				"a name element")
+				
+		if(len(name_element.childNodes) != 1 or 
+			name_element.childNodes[0].nodeType != name_element.childNodes[0].TEXT_NODE):
+			
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"A PloneVoteCryptoLib stored cryptosystem file must contain " \
+				"the cryptosystem's short name.")
+		
+		# Get text without leading or trailing spaces
+		name = 	name_element.childNodes[0].data.strip()
+		
+		# Check description
+		if(description_element == None):
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"A PloneVoteCryptoLib stored cryptosystem file must contain " \
+				"a description element")
+				
+		if(len(description_element.childNodes) != 1 or 
+			description_element.childNodes[0].nodeType != description_element.childNodes[0].TEXT_NODE):
+			
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"A PloneVoteCryptoLib stored cryptosystem file must contain " \
+				"the cryptosystem's description.")
+		
+		# Get text without leading or trailing spaces
+		description = 	description_element.childNodes[0].data.strip()
+		
+		# Check CryptoSystemScheme node
+		if(cs_scheme_element == None):
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"A PloneVoteCryptoLib stored cryptosystem file must contain " \
+				"a CryptoSystemScheme element")
+		
+		# Parse the inner CryptoSystemScheme element
+		(nbits, prime, generator) = \
+					cls.parse_crytosystem_scheme_xml_node(cs_scheme_element)	
+		
+		# Create a new EGStub
+		return cls(name, description, nbits, prime, generator)
+	
 
 # ============================================================================
