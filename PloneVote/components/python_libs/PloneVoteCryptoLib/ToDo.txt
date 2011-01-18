@@ -13,13 +13,21 @@
 		- plonevote.gen_keys
 		- plonevote.encrypt
 		- plonevote.decrypt
-	20 Ene:
+	21 Ene:
 		- threshold encryption
+	22 Ene:
+		- Begin (module) documentation/test work
+		
+	Next week:
+		- mixnets
+		- proof of shuffling
+		- verifiable decryption
 		
 ProgressMonitor:
-	- Tasks and subtasks (num_subtasks)
-	- task_name, parent
-	- tick() and expected_ticks
-	- on_task_change_callback, on_progress_percent_callback, on_tick_callback
-	
-	task = task.new_subtask(name, percent_of_parent, expected_ticks)
+	+ Tasks and subtasks (num_subtasks)
+	+ task_name, parent
+	+ tick() and expected_ticks
+	+ on_task_change_callback, on_progress_percent_callback, on_tick_callback
+	+ task = task.new_subtask(name, percent_of_parent, expected_ticks)
+	- on_task_end
+	- ToDo: class description (check other descriptions)

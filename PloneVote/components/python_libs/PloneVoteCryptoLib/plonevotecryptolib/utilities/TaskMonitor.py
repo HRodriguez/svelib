@@ -35,7 +35,48 @@ class TaskMonitor:
 	"""
 	Used to monitor the progress of PloneVoteCryptoLib actions.
 	
-	ToDo: Explain!
+	A TaskMonitor is optionally accepted by most PloneVoteCryptoLib methods 
+	which are expected to take a non-negligible time to execute from the point 
+	of view of the user. Before passing the TM object, is possible to register 
+	callbacks with it, for different events, including:
+	
+		- The start of a subtask
+		- The end of this task or one of its subtasks
+		- Each time the task advances X% progress towards completion
+		  (for tasks in which the length of the task can be correctly estimated 
+		  a priory)
+		- Each time the task advances N ticks (minimal steps) towards completion
+	
+	Callbacks are called whenever the event for which they were registered 
+	occurs, receiving the Task Monitor instance that triggered the event as 
+	their only argument. Said instance may be the task for which they were 
+	registered or a subtask. The callback can then inspect the properties of 
+	the task object in order to present some form of progress report to the 
+	user (ie. a progress bar).
+	
+	Callbacks are executed synchronously because of limitations in python's
+	multi-threading capabilities (search: Global interpreter lock). It is thus 
+	recommended that callbacks be fast functions or called very infrequently, 
+	as to not add significantly to the time it takes for the monitored task to 
+	complete.
+	
+	Note: A callback can be registered with the option cascade = False, which 
+	means it will only be called for the current task and not any subtasks. 
+	However, most tasks only report tick or percent progress in their leaf 
+	subtasks (those that have no further subtasks).
+	
+	Attributes:
+	   (Attributes are most useful when querying the TM object in callbacks)
+		task_name::string	-- Name of the current task or subtask.
+		parent_task::TaskMonitor	-- The task that spawned this subtask.
+		percent_of_parent::float	-- How much (in %) does this subtask 
+									  represents of the work done by its parent.
+		num_subtasks::int	-- Expected number of subtasks for this task.
+		current_subtask::TaskMonitor-- Currently executing subtask of this task.
+		current_subtask_num::int	-- Number of the currently executing subtask
+		recorded_ticks::int	-- Ticks (steps) that have occurred for this task.
+		expected_ticks::int	-- Total ticks expected to occur for this task.
+								(-1 means Unknown)
 	"""
 	
 	# General attributes:
@@ -44,13 +85,9 @@ class TaskMonitor:
 	percent_of_parent = 100.0
 	num_subtasks = 0
 	current_subtask = None
+	current_subtask_num = 0
 	recorded_ticks = 0
 	expected_ticks = -1
-	
-	# Callbacks:
-	_on_task_change_callbacks = []
-	_on_tick_callbacks = []
-	_on_progress_percent_callbacks = []
 	
 	def get_percent_completed(self):
 		"""
@@ -61,12 +98,14 @@ class TaskMonitor:
 		completed, then 0.0 is returned.
 		
 		Returns:
-			percentage::double	-- The percentage of the task already completed.
+			percentage::float	-- The percentage of the task already completed.
 		"""
-		if(expected_ticks == -1):
+		if(self.expected_ticks == -1):
 			return 0.0
 		else:
-			return (100.0 * recorded_ticks) / expected_ticks	# float division
+			# float division:
+			return (100.0 * self.recorded_ticks) / self.expected_ticks
+			
 	
 	def __init__(self, task_name="Root", num_subtasks=0, expected_ticks = -1):
 		"""
@@ -83,9 +122,15 @@ class TaskMonitor:
 		self.num_subtasks = num_subtasks
 		self.expected_ticks = expected_ticks
 		
-	def add_on_task_change_callback(self, callback_function, cascade = True):
+		self._on_task_start_callbacks = []
+		self._on_task_end_callbacks = []
+		self._on_tick_callbacks = []
+		self._on_progress_percent_callbacks = []
+
+		
+	def add_on_task_start_callback(self, callback_function, cascade = True):
 		"""
-		Add a function to be called whenever the current subtask changes.
+		Add a function to be called whenever a subtask starts.
 		
 		The given function is called whenever the currently executing subtask 
 		changes. For example, when the monitored code invokes new_subtask().
@@ -97,7 +142,29 @@ class TaskMonitor:
 			cascade::bool	-- Whether or not this callback applies to subtasks.
 		"""
 		callback = {'function' : callback_function, 'cascade' : cascade}
-		self._on_task_change_callbacks.append(callback)
+		self._on_task_start_callbacks.append(callback)
+
+		
+	def add_on_task_end_callback(self, callback_function, cascade = True):
+		"""
+		Add a function to be called whenever a subtask finishes.
+		
+		The given function is called whenever the currently executing subtask 
+		ends. For example, when the monitored code invokes new_subtask() over 
+		its parent.
+		
+		This callbacks will always be called before on_task_start callbacks 
+		for the same event.
+		
+		Arguments:
+			callback_function(task::TaskMonitor)
+				-- A callback function which takes a TaskMonitor pointing to 
+				   the recently finished subtask.
+			cascade::bool	-- Whether or not this callback applies to subtasks.
+		"""
+		callback = {'function' : callback_function, 'cascade' : cascade}
+		self._on_task_end_callbacks.append(callback)
+
 	
 	def add_on_progress_percent_callback(self, callback_function, percent_span = 5.0, cascade = True):
 		"""
@@ -107,7 +174,7 @@ class TaskMonitor:
 		subtask's) progress increases by the given (percent_span) percent.
 		
 		Note that if the requested percent granularity is smaller than the 
-		granularity of the task "ticks" (ie. a single tick may avance progress 
+		granularity of the task "ticks" (ie. a single tick may advance progress 
 		by more than one percent_span at a time), then the callback function 
 		may be called multiple times in succession without progress occurring 
 		in between calls.
@@ -115,7 +182,7 @@ class TaskMonitor:
 		Arguments:
 			callback_function(task::TaskMonitor)
 				-- A callback function which takes a TaskMonitor pointing to 
-				   the newly started subtask.
+				   the currently executing task.
 			percent_span::float		-- The percentile progress span between 
 									   each time the callback function is 
 									   called. (default: 5%)
@@ -124,6 +191,7 @@ class TaskMonitor:
 		callback = {'function' : callback_function, 'cascade' : cascade, \
 				'percent_span' : percent_span, 'next_percent' : percent_span}
 		self._on_progress_percent_callbacks.append(callback)
+
 	
 	def add_on_tick_callback(self, callback_function, num_ticks = 1, cascade = True):
 		"""
@@ -135,7 +203,7 @@ class TaskMonitor:
 		Arguments:
 			callback_function(task::TaskMonitor)
 				-- A callback function which takes a TaskMonitor pointing to 
-				   the newly started subtask.
+				   the currently executing task.
 			num_ticks::int	-- The ticks of progress that must occur between 
 							   each time the callback function is called. 
 							   (default: one tick)
@@ -144,6 +212,7 @@ class TaskMonitor:
 		callback = {'function' : callback_function, 'cascade' : cascade, \
 				'num_ticks' : num_ticks}
 		self._on_tick_callbacks.append(callback)
+
 	
 	def remove_callback(self, callback_function):
 		"""
@@ -157,19 +226,20 @@ class TaskMonitor:
 		will still be called when other subtasks of said parent, which are not 
 		part of the current task, execute.
 		"""
-		for l in [self._on_task_change_callbacks, \
+		for l in [self._on_task_start_callbacks, \
+				  self._on_task_end_callbacks, \
 				  self._on_progress_percent_callbacks, \
 				  self._on_tick_callbacks]:
 			l = [cb for cb in l if cb['function'] is not callback_function]
+
 	
 	def new_subtask(self, name, percent_of_parent = 100.0, num_subtasks=0, 
 					expected_ticks = -1):
 		"""
 		Starts a new subtask to the current one.
 		
-		Each subtask is associated with a new TaskMonitor object. When the 
-		current running task creates a new subtask, all callbacks for the 
-		current task's monitor are copied to the new subtask's monitor.
+		Each subtask is associated with a new TaskMonitor object. Cascading 
+		callbacks are copied to the subtask.
 		
 		Arguments:
 			name::string	-- The name of the new subtask
@@ -183,28 +253,43 @@ class TaskMonitor:
 		Returns:
 			subtask::TaskMonitor	-- The TM for the new subtask.
 		"""
+		# Call task_end callbacks on the current subtask (if there is one)
+		if self.current_subtask != None:
+			for cb in self._on_task_end_callbacks:
+				cb["function"](self.current_subtask)
+		
 		# Set up object and parent, child links
 		subtask = TaskMonitor(name, num_subtasks, expected_ticks)
 		self.current_subtask = subtask
+		self.current_subtask_num += 1
+		self.num_subtasks = max(self.num_subtasks, self.current_subtask_num)
 		subtask.parent = self
 		subtask.percent_of_parent = percent_of_parent
 		
+		
 		# Cascade callbacks
-		for cb in self._on_task_change_callbacks:
+		for cb in self._on_task_start_callbacks:
 			if cb['cascade']:
-				subtask._on_task_change_callbacks.append(cb)
+				subtask._on_task_start_callbacks.append(cb)
+				
+		for cb in self._on_task_end_callbacks:
+			if cb['cascade']:
+				subtask._on_task_end_callbacks.append(cb)
+				
 		for cb in self._on_progress_percent_callbacks:
 			if cb['cascade']:
 				subtask._on_progress_percent_callbacks.append(cb)
+				
 		for cb in self._on_tick_callbacks:
 			if cb['cascade']:
 				subtask._on_tick_callbacks.append(cb)
 		
-		# Call task_change callbacks
-		for cb in self._on_task_change_callbacks:
+		# Call task_start callbacks
+		for cb in self._on_task_start_callbacks:
 			cb["function"](subtask)		
 		
 		return subtask
+
 	
 	def tick(self):
 		"""
