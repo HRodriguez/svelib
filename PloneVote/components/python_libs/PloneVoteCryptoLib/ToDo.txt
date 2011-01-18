@@ -21,3 +21,5 @@ ProgressMonitor:
 	- task_name, parent
 	- tick() and expected_ticks
 	- on_task_change_callback, on_progress_percent_callback, on_tick_callback
+	
+	task = task.new_subtask(name, percent_of_parent, expected_ticks)
