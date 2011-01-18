@@ -1,3 +1,4 @@
+README.txt
 setup.cfg
 setup.py
 PloneVoteCryptoLib.egg-info/PKG-INFO
@@ -5,5 +6,13 @@ PloneVoteCryptoLib.egg-info/SOURCES.txt
 PloneVoteCryptoLib.egg-info/dependency_links.txt
 PloneVoteCryptoLib.egg-info/entry_points.txt
 PloneVoteCryptoLib.egg-info/not-zip-safe
+PloneVoteCryptoLib.egg-info/requires.txt
 PloneVoteCryptoLib.egg-info/top_level.txt
+plonevotecryptolib/EGCryptoSystem.py
+plonevotecryptolib/PVCExceptions.py
 plonevotecryptolib/__init__.py
+plonevotecryptolib/params.py
+plonevotecryptolib/utilities/Enumerate.py
+plonevotecryptolib/utilities/TaskMonitor.py
+plonevotecryptolib/utilities/__init__.py
+plonevotecryptolib/utilities/temp_task_mon_test.py

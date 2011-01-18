@@ -3,7 +3,7 @@
 	
 	17 Ene:
 		+ EGCryptoSystem and EGStub save to/load from file
-		- plonevote.gen_cryptosys tool
+		+ plonevote.gen_cryptosys tool
 	18 Ene:
 		- PrivateKey, PublicKey, KeyPair : generation
 		- encrypt/decrypt bytestream
@@ -27,7 +27,7 @@ ProgressMonitor:
 	+ Tasks and subtasks (num_subtasks)
 	+ task_name, parent
 	+ tick() and expected_ticks
-	+ on_task_change_callback, on_progress_percent_callback, on_tick_callback
+	+ on_task_start_callback, on_progress_percent_callback, on_tick_callback
 	+ task = task.new_subtask(name, percent_of_parent, expected_ticks)
-	- on_task_end
-	- ToDo: class description (check other descriptions)
+	+ on_task_end
+	+ ToDo: class description (check other descriptions)

@@ -3,9 +3,19 @@ Name: PloneVoteCryptoLib
 Version: 0.0.1dev
 Summary: Basic cryptographic library for the PloneVote verifiable online voting system.
 Home-page: http://ToDo/set/a/web/page.html
-Author: Lázaro Clapp
+Author: Lazaro Clapp
 Author-email: lazaro.clapp@gmail.com
-License: BSD
-Description: This library provides all basic cryptographic operations required by the PloneVote verifiable online voting system.cription)
+License: MIT
+Description: This library provides all basic cryptographic operations required by the PloneVote verifiable online voting system. (ToDo: Improve description)
 Keywords: cryptography,voting,library,PloneVote
 Platform: UNKNOWN
+Classifier: Development Status :: 1 - Planning
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Natural Language :: English
+Classifier: Operating System :: MacOS :: MacOS X
+Classifier: Operating System :: Microsoft :: Windows
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Programming Language :: Python :: 2.4
+Classifier: Programming Language :: Python :: 2.6
+Classifier: Topic :: Security :: Cryptography

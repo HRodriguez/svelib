@@ -64,10 +64,13 @@ from Crypto.Random.random import StrongRandom
 
 
 # Use configuration parameters from params.py
-import params
+import plonevotecryptolib.params as params
 
 # Use some PloneVoteCryptoLib exceptions
-from PVCExceptions import KeyLengthTooLowError
+from plonevotecryptolib.PVCExceptions import *
+
+# Provide progress monitoring capabilities
+from plonevotecryptolib.utilities.TaskMonitor import TaskMonitor
 # ============================================================================
 
 
@@ -99,7 +102,7 @@ def _is_safe_prime(p):
 				Crypto.Util.number.isPrime(p, false_positive_prob=prob))
 				
 
-def _generate_safe_prime(nbits):
+def _generate_safe_prime(nbits, task_monitor=None):
 		"""
 		Generate a safe prime of size nbits.
 		
@@ -118,12 +121,15 @@ def _generate_safe_prime(nbits):
 		
 		Returns:
 			p::long		-- A safe prime.
+			task_monitor::TaskMonitor	-- A task monitor for the process.
 		"""
 		found = False
 		
 		# We generate (probable) primes q of size (nbits - 1) 
 		# until p = 2*q + 1 is also a prime
 		while(not found):
+			if(task_monitor != None): task_monitor.tick()
+		
 			q = Crypto.Util.number.getPrime(nbits - 1)
 			p = 2*q + 1
 			
@@ -202,7 +208,7 @@ def _is_generator(p, g):
 			return True
 
 
-def _get_generator(p):
+def _get_generator(p, task_monitor=None):
 		"""
 		Returns the generator of the Z_{p}^{*} cyclic group.
 		
@@ -215,15 +221,18 @@ def _get_generator(p):
 		
 		Arguments:
 			p::long	-- A safe prime.
+			task_monitor::TaskMonitor	-- A task monitor for the process.
 		
 		Returns:
 			g::long	-- A generator of Z_{p}^{*}
 		"""		
 		random = StrongRandom()
 		candidate = random.randint(1, p - 1)
+		if(task_monitor != None): task_monitor.tick()
 		
 		while(not _is_generator(p, candidate)):
 			candidate = random.randint(1, p - 1)
+			if(task_monitor != None): task_monitor.tick()
 		
 		if(params.DEBUG):
 			assert pow(candidate, p - 1, p) == 1, \
@@ -378,7 +387,7 @@ class EGCryptoSystem:
 		pass
 			
 	@classmethod
-	def new(cls, nbits=params.DEFAULT_KEY_SIZE):
+	def new(cls, nbits=params.DEFAULT_KEY_SIZE, task_monitor=None):
 		"""
 		Construct a new EGCryptoSystem object with an specific bit size.
 		
@@ -393,6 +402,8 @@ class EGCryptoSystem:
 						   ElGamal scheme. Higher is safer but slower.
 						   Must be a multiple of eight (ie. expressible in bytes).
 						   Defaults to params.DEFAULT_KEY_SIZE.
+			task_monitor::TaskMonitor	-- A Task Monitor object to monitor the 
+										   cryptosystem generation process.
 						   
 	    Throws:
 	    	KeyLengthTooLowError	-- If nbits is smaller than 
@@ -406,10 +417,20 @@ class EGCryptoSystem:
 		cryptosystem._nbits = cls._verify_key_size(nbits)
 		
 		# Generate a safe (pseudo-)prime of size _nbits
-		cryptosystem._prime = _generate_safe_prime(cryptosystem._nbits)
+		if(task_monitor != None):
+			prime_task = task_monitor.new_subtask("Generate safe prime", 
+									percent_of_parent = 80.0)
+			cryptosystem._prime = _generate_safe_prime(cryptosystem._nbits, prime_task)
+		else:
+			cryptosystem._prime = _generate_safe_prime(cryptosystem._nbits)
 			
 		# Now we need the generator for the Z_{p}^{*} cyclic group
-		cryptosystem._generator = _get_generator(cryptosystem._prime)
+		if(task_monitor != None):
+			generator_task = task_monitor.new_subtask("Obtain a generator for the cyclic group", 
+									percent_of_parent = 20.0)
+			cryptosystem._generator = _get_generator(cryptosystem._prime, generator_task)
+		else:
+			cryptosystem._generator = _get_generator(cryptosystem._prime)
 		
 		# Mark the object as constructed
 		cryptosystem._constructed = True

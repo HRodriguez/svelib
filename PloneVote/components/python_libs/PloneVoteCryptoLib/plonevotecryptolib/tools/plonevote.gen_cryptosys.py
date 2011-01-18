@@ -33,6 +33,8 @@ import getopt
 
 from plonevotecryptolib.utilities.TaskMonitor import TaskMonitor
 from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem
+from plonevotecryptolib.PVCExceptions import * 
+import plonevotecryptolib.params
 
 def print_usage():
 	"""
@@ -40,26 +42,26 @@ def print_usage():
 	"""
 	print """USAGE:
 		  
-		  plonevote.get_cryptosys.py filename --nbits=N --name="..." --description="..."
+		  plonevote.get_cryptosys.py --nbits=N --name="..." --description="..." filename
 		  
 		  plonevote.get_cryptosys.py (--help|-h)
 		  
-		  Long options (--X) may be given in any order.
-		  
-		  	filename : the name of the file to which to save the newly generated cryptosystem.
+		  Long options (--X) may be given in any order, but the filename must always be the last argument.
 		  	
 		  	--nbits=N : (optional) the size in bits for the keys in the cryptosystem.
 		  	
 		  	--name="..."  : (optional) a short human readable name to identify the new cryptosystem definition.
 		  	
 		  	--description="..."  : (optional) a human readable description of the new cryptosystem definition.
+		  
+		  	filename : the name of the file to which to save the newly generated cryptosystem.
 		  	
 		  	--help|-h : Shows this message
 		  """
 	
 def run_tool(nbits, filename, name, description):
 	"""
-	Runs the plonevote.get_cryptosys tool.
+	Runs the plonevote.get_cryptosys tool and generates a new cryptosystem.
 	"""
 	# Define callbacks for the TaskMonitor for progress monitoring
 	def cb_task_start(task):
@@ -79,23 +81,20 @@ def run_tool(nbits, filename, name, description):
 	taskmon.add_on_task_end_callback(cb_task_end)
 	
 	# Generate a new cryptosystem of the requested size
-	if(nbits == None):
-		cryptosys = EGCryptoSystem.new(task_monitor = taskmon)
-	else:
-		try:
-			cryptosys = EGCryptoSystem.new(nbits, task_monitor = taskmon)
-		except KeyLengthTooLowError:
-			print "ERROR: The given bit size does not meet PloneVoteCryptoLib "\
-				  "minimum security requirements (too short)."
-		except KeyLengthNonBytableError:
-			print "ERROR: The given bit size must be a multiple of 8."
+	try:
+		cryptosys = EGCryptoSystem.new(nbits, task_monitor = taskmon)
+	except KeyLengthTooLowError:
+		print "ERROR: The given bit size does not meet PloneVoteCryptoLib "\
+			  "minimum security requirements (too short)."
+	except KeyLengthNonBytableError:
+		print "ERROR: The given bit size must be a multiple of 8."
 	
 	# Save the cryptosystem to file
-	print "\nSaving cryptosystem to %d..." % filename,
+	print "\nSaving cryptosystem to %s..." % filename,
 	
 	cryptosys.to_file(name, description, filename)
 	
-	print "SAVED."
+	print "SAVED.\n"
 
 def main():
 	"""
@@ -103,37 +102,56 @@ def main():
 	"""
     # parse command line options
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "n", ["nbits", "name", "description"])
+		opts, args = getopt.getopt(sys.argv[1:], 'n', ['nbits=', 'name=', 'description='])
 	except getopt.error, msg:
 		print msg
 		print "for help use --help"
 		sys.exit(2)
-        
-    # process options
+	
+	# process options
 	nbits_str = name = description = filename = None
 	for o, a in opts:
 		if o in ("-h", "--help"):
 			print_usage()
 			sys.exit(0)
-		elif o == "nbits":
+		elif o == "--nbits":
 			nbits_str = a
-		elif o == "name":
+		elif o == "--name":
 			name = a
-		elif o == "description":
+		elif o == "--description":
 			description = a
 		else:
 			print "ERROR: Invalid argument: %d=%d\n" % (o, a)
 			print_usage()
+			sys.exit(2)
        		
     # process arguments
 	if(len(args) != 1):
 		print "ERROR: Invalid arguments.\n" 
 		print_usage()
+		sys.exit(2)
     
 	filename = args[0]
+	
+	# Set default options where needed
+	if(nbits_str == None):
+		nbits = plonevotecryptolib.params.DEFAULT_KEY_SIZE
+	else:
+		try:
+			nbits = int(nbits_str)
+		except ValueError:
+			print "ERROR: %d is not a valid number of bits.\n" % nbit_str 
+			print_usage()
+			sys.exit(2)
+	
+	if(name == None):
+		name = "New %d bits PloneVote cryptosystem" % nbits
+	
+	if(description == None):
+		description = "(No description provided)"
     
-    # Check all arguments
-	print nbits, name, description, filename
+    # Run cryptosystem generation
+	run_tool(nbits, filename, name, description)
 
 if __name__ == "__main__":
     main()
