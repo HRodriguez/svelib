@@ -5,7 +5,7 @@
 		+ EGCryptoSystem and EGStub save to/load from file
 		+ plonevote.gen_cryptosys tool
 	18 Ene:
-		- PrivateKey, PublicKey, KeyPair : generation
+		+ PrivateKey, PublicKey, KeyPair : generation
 		- encrypt/decrypt bytestream
 	19 Ene:
 		- save/load keys

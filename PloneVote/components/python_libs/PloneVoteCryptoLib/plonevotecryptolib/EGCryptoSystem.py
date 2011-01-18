@@ -64,7 +64,7 @@ from Crypto.Random.random import StrongRandom
 
 
 # Use configuration parameters from params.py
-import plonevotecryptolib.params as params
+from plonevotecryptolib import params
 
 # Use some PloneVoteCryptoLib exceptions
 from plonevotecryptolib.PVCExceptions import *
@@ -526,7 +526,7 @@ class EGCryptoSystem:
 		self.to_stub(name, description).to_file(filename)
 		
 	@classmethod
-	def load_from_file(self, filename):
+	def from_file(self, filename):
 		"""
 		Loads an instance of the cryptosystem from the given file.
 		
@@ -535,6 +535,17 @@ class EGCryptoSystem:
 		parameters are invalid.
 		"""
 		return EGStub.from_file(filename).to_cryptosystem()
+		
+	def new_key_pair(self):
+		"""
+		Generate a new key pair within this cryptosystem
+		
+		Returns:
+			key_pair::KeyPair	-- A new key pair using the current 
+								   cryptosystem.
+		"""
+		from plonevotecryptolib.KeyPair import KeyPair # avoids circular imports
+		return KeyPair(self)
 	
 
 class EGStub:
