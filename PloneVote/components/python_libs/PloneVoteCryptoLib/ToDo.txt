@@ -22,6 +22,7 @@ Lázaro
 		- plonevote.gen_keys
 		- plonevote.encrypt
 		- plonevote.decrypt
+		- milestones Sergio
 	21 Ene:
 		- threshold encryption
 	22 Ene:
@@ -40,3 +41,19 @@ ProgressMonitor:
 	+ task = task.new_subtask(name, percent_of_parent, expected_ticks)
 	+ on_task_end
 	+ ToDo: class description (check other descriptions)
+
+Early optimization is the O(sqrt(n)*lg^2(n)) of all evil...
+
+
+from utilities.BitStream import BitStream as BS
+bs = BS()
+
+s = ""
+for i in range(0,100):
+	s += "DEADBEEF"
+
+num = int(s, 16)
+bit_length = 4*8*100
+bs.put_num(num, bit_length)
+
+print [hex(c)[2:-1] for c in bs._cells]
