@@ -43,11 +43,13 @@ class PrivateKey:
 	Attributes:
 		cryptosystem::EGCryptoSystem	-- The ElGamal cryptosystem in which 
 										   this key is defined.
+		public_key::PublicKey	-- The associated public key.
 	"""
 	
 	cryptosystem = None
+	public_key = None
 	
-	def __init__(self, cryptosystem, private_key_value):
+	def __init__(self, cryptosystem, public_key, private_key_value):
 		"""
 		Creates a new private key. Should not be invoked directly.
 		
@@ -58,17 +60,19 @@ class PrivateKey:
 		Arguments:
 			cryptosystem::EGCryptoSystem-- The ElGamal cryptosystem in which 
 										   this key is defined.
+			public_key::PublicKey		-- The associated public key.
 			private_key_value::long		-- The actual value of the private key.
 		"""
 		self.cryptosystem = cryptosystem
+		self.public_key = public_key
 		self._key = private_key_value
 		
-	def decrypt_to_bytes(self, cyphertext):
+	def decrypt_to_bytes(self, ciphertext):
 		"""
 		"""
 		pass
 	
-	def decrypt_to_text(self, cyphertext):
+	def decrypt_to_text(self, ciphertext):
 		"""
 		"""
 		pass

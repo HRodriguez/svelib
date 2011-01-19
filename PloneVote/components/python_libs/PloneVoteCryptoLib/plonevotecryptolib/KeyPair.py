@@ -69,7 +69,8 @@ class KeyPair:
 		inner_public_key = pow(g, inner_private_key, p)
 		
 		self.public_key = PublicKey(cryptosystem, inner_public_key)
-		self.private_key = PublicKey(cryptosystem, inner_private_key)
+		self.private_key = PrivateKey(cryptosystem, self.public_key, 
+									 inner_private_key)
 	
 	@classmethod
 	def new(cls, cryptosystem):

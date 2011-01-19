@@ -6,7 +6,16 @@
 		+ plonevote.gen_cryptosys tool
 	18 Ene:
 		+ PrivateKey, PublicKey, KeyPair : generation
-		- encrypt/decrypt bytestream
+		- encrypt/decrypt bytestream  (NOTE: Actually, lets use an intstream, python 2.4 doesn't support bytes)
+		
+		>>> s = ""
+>>> for c in [chr(ord(c)) for c in "Lázaro"]: s+=c
+... 
+>>> s
+'L\xc3\xa1zaro'
+>>> print s
+Lázaro
+		
 	19 Ene:
 		- save/load keys
 		- armored encrypted text format
