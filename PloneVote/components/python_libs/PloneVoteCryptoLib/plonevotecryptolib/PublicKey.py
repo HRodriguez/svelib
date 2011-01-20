@@ -38,6 +38,8 @@
 from Crypto.Random.random import StrongRandom
 
 from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem
+from plonevotecryptolib.Ciphertext import Ciphertext
+from plonevotecryptolib.utilities.BitStream import BitStream
 
 _MESSAGE_SIZE_SPACE = 8 # (see Ciphertext, Note 001)
 _MAX_MESSAGE_SIZE = 2**(_MESSAGE_SIZE_SPACE*8)
@@ -82,12 +84,116 @@ class PublicKey:
 		self.cryptosystem = cryptosystem
 		self._key = public_key_value
 		
-	def encrypt_bytes(self, byte_array, pad_to=None, task_monitor=None):
+	def encrypt_bitstream(self, bitstream, pad_to=None, task_monitor=None):
 		"""
-		Encrypts the given array of bytes into a ciphertext object.
+		Encrypts the given bitstream into a ciphertext object.
 		
 		Arguments:
-			byte_array::byte[]	-- An array of bytes to encrypt.
+			bitstream::BitStream-- A stream of bits to encrypt 
+								   (see BitStream utility class).
+			pad_to::int			-- Minimum size (in bytes) of the resulting 
+								   ciphertext. Data will be padded before 
+								   encryption to match this size.
+			task_monitor::TaskMonitor	-- A task monitor for this task.
+		
+		Returns:
+			ciphertext:Ciphertext	-- A ciphertext object encapsulating the 
+									   encrypted data.		
+		"""
+		random = StrongRandom()
+		
+		## PART 1
+		# First, format the bitstream as per Ciphertext.py Note 001,
+		# previous to encryption.
+		# 	[size (64 bits) | message (size bits) | padding (X bits) ]
+		##
+		formated_bitstream = BitStream()
+		
+		# The first 64 encode the size of the actual data in bits
+		size_in_bits = bitstream.get_length()
+		
+		if(size_in_bits >= 2**64):
+			raise ValueError("The size of the bitstream to encrypt is larger " \
+							 "than 16 Exabits. The current format for  " \
+							 "PloneVote ciphertext only allows encrypting a  " \
+							 "maximum of 16 Exabits of information.")
+		
+		formated_bitstream.put_num(size_in_bits, 64)
+		
+		# We then copy the contents of the original bitstream
+		bitstream.seek(0)
+		formated_bitstream.put_bitstream_copy(bitstream)
+		
+		# Finally, we append random data until we reach the desired pad_to 
+		# length
+		unpadded_length = formated_bitstream.get_length()
+		if(pad_to != None and (pad_to * 8) > unpadded_length):
+			full_length = pad_to * 8
+		else:
+			full_length = unpadded_length
+		
+		padding_left = full_length - unpadded_length
+		
+		while(padding_left > 1024):
+			padding_bits = random.randint(1, 2**1024)
+			formated_bitstream.put_num(padding_bits,1024)
+			padding_left -= 1024
+		
+		if(padding_left > 0):
+			padding_bits = random.randint(1, 2**padding_left)
+			formated_bitstream.put_num(padding_bits, padding_left)
+			padding_left = 0
+		
+		## PART 2
+		# We encrypt the formated bitsteam using ElGamal into a Ciphertext 
+		# object.
+		# See "Handbook of Applied Cryptography" Algorithm 8.18
+		##
+		
+		# block_size is the size of each block of bits to encrypt
+		# since we can only encrypt messages in [0, p - 1]
+		# we should use (nbits - 1) as the block size, where 
+		# 2**(nbits - 1) < p < 2**nbits
+		
+		block_size = self.cryptosystem.get_nbits() - 1
+		prime = self.cryptosystem.get_prime()
+		generator = self.cryptosystem.get_generator()
+		
+		# We pull data from the bitstream one block at a time and encrypt it
+		formated_bitstream.seek(0)
+		ciphertext = Ciphertext()
+		
+		plaintext_bits_left = formated_bitstream.get_length()
+		while(plaintext_bits_left > 0):
+			
+			# get next block (message, m, etc) to encrypt
+			if(plaintext_bits_left >= block_size):
+				block = formated_bitstream.get_num(block_size)
+				plaintext_bits_left -= block_size
+			else:
+				block = formated_bitstream.get_num(plaintext_bits_left)
+				plaintext_bits_left = 0
+			
+			# Select a random integer k, 1 <= k <= p − 2
+			k = random.randint(1, prime - 2)
+			
+			# Compute gamma and delta
+			gamma = pow(generator, k, prime)
+			delta = (block * pow(self._key, k, prime)) % prime
+			
+			# Add this encrypted data portion to the ciphertext object
+			ciphertext.append(gamma, delta)
+		
+		# return the ciphertext object
+		return ciphertext
+		
+	
+	def encrypt_text(self, text, pad_to=None, task_monitor=None):
+		"""
+		Encrypts the given string into a ciphertext object.
+		
+		Arguments:
+			text::string			-- A string to encrypt.
 			pad_to::int			-- Minimum size (in bytes) of the resulting 
 								   ciphertext. Data will be padded before 
 								   encryption to match this size.
@@ -96,85 +202,10 @@ class PublicKey:
 		Returns:
 			ciphertext:Ciphertext	-- A ciphertext object encapsulating the 
 									   encrypted data.
-		
-		See "Handbook of Applied Cryptography" Algorithm 8.18
 		"""
-		random = StrongRandom()
-		
-		# With a nbits long prime, we actually can only encrypt with certainty 
-		# (nbits - 1) of data (for most schemes, this will mean as much as a 
-		# byte per block going unused).
-		key_size_bytes = (self.cryptosystem.get_nbits() - 1) / 8 
-		
-		# Create pre-encryption format byte array (see Ciphertext.py, Note 001)
-		# [size in bytes][message][padding]
-		
-		# Size without padding
-		message_size_bytes = len(byte_array)
-		data_size_bytes = _MESSAGE_SIZE_SPACE + message_size_bytes
-		
-		if(message_size_bytes > _MAX_MESSAGE_SIZE):
-			raise MessageToLongError()
-		
-		# Size with padding
-		if(pad_to != None and (data_size_bytes < pad_to)):
-			data_size_bytes = pad_to
-		
-		# Adjust to block boundaries
-		if(data_size_bytes % key_size_bytes != 0):
-			data_size_bytes += key_size_bytes - (data_size_bytes % key_size_bytes)
-		
-		assert data_size_bytes % key_size_bytes == 0, "Data size should had been adjusted to be a multiple of the cryptosystem key/block size."
-		
-		# Copy the byte array to the structured format
-		data_bytes = bytearray(data_size_bytes)
-		
-		#	Copy the size in the first 8 bytes
-		m_size = message_size_bytes
-		i = _MESSAGE_SIZE_SPACE
-		while(m_size != 0):
-			i -= 1
-			assert i >= 0, "The size of the message cannot exceed 16 Exabytes, yet it somehow didn't fit in a 8 byte word (!)."
-			data_bytes[i] = m_size % 256	# last 8 bits
-			m_size >> 8
-		
-		#   Copy the message
-		pos = _MESSAGE_SIZE_SPACE
-		data_bytes[pos:(message_size_bytes + pos)]
-		pos += message_size_bytes
-		
-		#	Pad
-		# 	   Pad with long words
-		l_word_max = 2**64
-		while(pos + 8 < data_size_bytes):
-			random_long_word = random.randint(1, l_word_max)
-			for i in range(0, 8):
-				data_bytes[pos + i] = random_long_word % 256	# last 8 bits
-				random_long_word >> 8
-			
-		#	   Pad byte by byte
-		random_long_word = random.randint(1, l_word_max)
-		for i in range(0, data_size_bytes - pos):
-			data_bytes[pos + i] = random_long_word % 256	# last 8 bits
-			random_long_word >> 8
-		
-		# ToDo: TEMP, add actual encryption !!!	
-		return data_bytes
-				
-	
-	def encrypt_text(self, text, task_monitor=None):
-		"""
-		Encrypts the given string into a ciphertext object.
-		
-		Arguments:
-			text::string			-- A string to encrypt.
-			task_monitor::TaskMonitor	-- A task monitor for this task.
-		
-		Returns:
-			ciphertext:Ciphertext	-- A ciphertext object encapsulating the 
-									   encrypted data.
-		"""
-		pass
+		bitstream = BitStream()
+		bitstream.put_string(text)
+		return self.encrypt_bitstream(bitstream, pad_to, task_monitor)
 		
 	def to_file(self, filename):
 		"""

@@ -6,16 +6,7 @@
 		+ plonevote.gen_cryptosys tool
 	18 Ene:
 		+ PrivateKey, PublicKey, KeyPair : generation
-		- encrypt/decrypt bytestream  (NOTE: Actually, lets use an intstream, python 2.4 doesn't support bytes)
-		
-		>>> s = ""
->>> for c in [chr(ord(c)) for c in "Lázaro"]: s+=c
-... 
->>> s
-'L\xc3\xa1zaro'
->>> print s
-Lázaro
-		
+		- encrypt/decrypt bitstream/strings
 	19 Ene:
 		- save/load keys
 		- armored encrypted text format
@@ -32,15 +23,6 @@ Lázaro
 		- mixnets
 		- proof of shuffling
 		- verifiable decryption
-		
-ProgressMonitor:
-	+ Tasks and subtasks (num_subtasks)
-	+ task_name, parent
-	+ tick() and expected_ticks
-	+ on_task_start_callback, on_progress_percent_callback, on_tick_callback
-	+ task = task.new_subtask(name, percent_of_parent, expected_ticks)
-	+ on_task_end
-	+ ToDo: class description (check other descriptions)
 
 Early optimization is the O(sqrt(n)*lg^2(n)) of all evil...
 

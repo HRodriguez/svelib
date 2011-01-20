@@ -42,12 +42,12 @@
 #
 # - The first 64 bits (8 bytes) are a long representation of the size of 
 # the encrypted data ($size).
-# - The next $size bytes are the original data to be encrypted.
+# - The next $size bits are the original data to be encrypted.
 # - The rest of the array contains random padding.
 #
-#	[size (64 bytes) | message (size bytes) | padding (X bytes) ]
+#	[size (64 bits) | message (size bits) | padding (X bits) ]
 #
-# Note that this limits messages to be encrypted to 16 Exabytes. 
+# Note that this limits messages to be encrypted to 16 Exabits (2 Exabytes). 
 # We deem this enough for our purposes (in fact, votes larger than a couple MB 
 # are highly unlikely, and system memory is probably going to be a more  
 # immediate problem).
@@ -73,6 +73,26 @@ class Ciphertext:
 	# longer than the cryptosystem's bit size.
 	gamma = []
 	delta = []
+	
+	def length(self):
+		"""
+		Returns the length, in blocks, of the ciphertext.
+		"""
+		assert len(gamma) == len(delta), "Each gamma component of the " \
+						"ciphertext must correspond to one delta component."
+		return len(gamma)
+	
+	def __getitem__(self, i):
+		"""
+		Makes this object indexable.
+		
+		Returns:
+			(gamma, delta)::(long, long)	-- Returns the gamma, delta pair 
+											   representing a particular block 
+											   of the encrypted data.
+				Use ciphertext[i] for block i.
+		"""
+		return (self.gamma[i], self.delta[i])
 	
 	def __init__(self):
 		"""

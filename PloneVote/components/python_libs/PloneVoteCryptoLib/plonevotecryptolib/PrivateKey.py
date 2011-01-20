@@ -67,8 +67,21 @@ class PrivateKey:
 		self.public_key = public_key
 		self._key = private_key_value
 		
-	def decrypt_to_bytes(self, ciphertext):
+	def decrypt_to_bitstream(self, ciphertext):
 		"""
+		Decrypts the given ciphertext into a bitstream.
+		
+		If the bitstream was originally encrypted with PublicKey.encrypt_X(), 
+		then this method returns a bitstream following the format described 
+		in Note 001 of the Ciphertext.py file:
+			[size (64 bits) | message (size bits) | padding (X bits) ]
+		
+		Arguments:
+			ciphertext::Ciphertext	-- An encrypted Ciphertext object
+		
+		Returns:
+			bitstream::Bitstream	-- A bitstream containing the unencrypted 
+									   data.
 		"""
 		pass
 	

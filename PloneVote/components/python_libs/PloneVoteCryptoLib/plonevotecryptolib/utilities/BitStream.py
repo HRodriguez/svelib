@@ -34,6 +34,19 @@
 
 _CELL_SIZE = 32
 
+class NotEnoughBitsInStreamError(Exception):
+	"""
+	An exception raised whenever the user requests more bits from a BitStream 
+	(via get_num, get_string, get_byte, etc) than the number of bits left in 
+	the stream from the current position to its end.
+	"""
+	
+	def __init__(self, msg):
+		"""
+		Constructs a new NotEnoughBitsInStreamError
+		"""
+		self.msg = msg
+
 class BitStream:
 	"""
 	A class representing a sequence of bits
@@ -163,7 +176,7 @@ class BitStream:
 		# Remove unaligned trailing bits to ease calculations
 		# Remember to store them in order to append them at the end
 		trailing_bit_length = remaining_bit_length % self._cell_size
-		trailing_bits = num % 2**(trailing_bit_length + 1)
+		trailing_bits = num % 2**(trailing_bit_length)
 		num = num >> trailing_bit_length
 		
 		# Add extra cells if needed
@@ -186,11 +199,12 @@ class BitStream:
 			self._last_cell_last_bit = 0
 		
 		# Append the trailing unaligned bits
-		start_bit = 0
-		end_bit = trailing_bit_length - 1
-		self._insert_in_cell(trailing_bits, self._current_cell, 
-							 start_bit, end_bit)
-		self._current_cell_bit = trailing_bit_length
+		if(trailing_bit_length > 0):
+			start_bit = 0
+			end_bit = trailing_bit_length - 1
+			self._insert_in_cell(trailing_bits, self._current_cell, 
+								 start_bit, end_bit)
+			self._current_cell_bit = trailing_bit_length
 		
 		# Check whether the length of the stream must also be updated
 		self._update_length()
@@ -209,7 +223,7 @@ class BitStream:
 							   interpreted as a binary sequence.
 		"""
 		if(bit_length > self.get_length() - self.get_current_pos()):
-			raise ValueError("Not enough bits in the bitstream.")
+			raise NotEnoughBitsInStreamError("Not enough bits in the bitstream.")
 		
 		limit_num_size = 2**bit_length
 		num = 0
@@ -286,7 +300,7 @@ class BitStream:
 		represented by a variable number of bits (ie. 1 or 2 byte chars).
 		"""
 		if(bit_length > self.get_length() - self.get_current_pos()):
-			raise ValueError("Not enough bits in the bitstream.")
+			raise NotEnoughBitsInStreamError("Not enough bits in the bitstream.")
 		
 		if(bit_length % 8 != 0):
 			raise ValueError("Valid string data must have a length that is " \
@@ -300,11 +314,21 @@ class BitStream:
 		
 		return s
 
-#	Maybe, if we actually NEED it:		
-#	
-#	def get_string_until_match(self, string_match):
-#		"""
-#		"""
+	def put_bitstream_copy(self, bitstream):
+		"""
+		Copy the contents of another bitstream in this at the current position.
 		
-	
+		Given another bitstream, copy its contents, from its current position 
+		to its end, into this one. Start writing this data at the current 
+		position of this stream.
+		
+		Arguments:
+			bitstream::BitStream  -- the bitstream from which to copy the data.
+		"""
+		to_copy = bitstream.get_length() - bitstream.get_current_pos()
+		
+		for step_size in [4096, 512, 64, 8, 1]:
+			while(to_copy >= step_size):
+				self.put_num(bitstream.get_num(step_size), step_size)
+				to_copy -= step_size
 	
