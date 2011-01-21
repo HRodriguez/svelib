@@ -54,6 +54,41 @@
 #
 ##
 
+class CiphertextIterator:
+	"""
+	An iterator object for a Ciphertext.
+	
+	It works block by block returning the (gamma, delta) pair for each block.
+	"""
+	
+	def __init__(self,ciphertext):
+		"""
+		Constructs a new iterator.
+		
+		Arguments:
+			ciphertext::Ciphertext	-- the ciphertext object through which we 
+									   wish to iterate.
+		"""
+		self.ciphertext = ciphertext
+		self._pos = 0
+		self._max = ciphertext.length()
+	
+	def next(self):
+		"""
+		Retrieve next block in the ciphertext.
+		
+		Returns:
+			(gamma, delta)::(long, long)	-- The gamma and delta pair 
+											   representing a block of ElGamal 
+											   encrypted ciphertext.
+		"""
+		if(self._pos == self._max):
+			raise StopIteration
+		pair = self.ciphertext[self._pos]
+		self._pos += 1
+		return pair
+
+
 class Ciphertext:
 	"""
 	An object representing encrypted PloneVote data.
@@ -78,9 +113,10 @@ class Ciphertext:
 		"""
 		Returns the length, in blocks, of the ciphertext.
 		"""
-		assert len(gamma) == len(delta), "Each gamma component of the " \
-						"ciphertext must correspond to one delta component."
-		return len(gamma)
+		assert len(self.gamma) == len(self.delta), "Each gamma component of " \
+											"the ciphertext must correspond " \
+											" to one delta component."
+		return len(self.gamma)
 	
 	def __getitem__(self, i):
 		"""
@@ -93,6 +129,12 @@ class Ciphertext:
 				Use ciphertext[i] for block i.
 		"""
 		return (self.gamma[i], self.delta[i])
+	
+	def __iter__(self):
+		"""
+		Return an iterator (CiphertextIterator) for the current ciphertext.
+		"""
+		return CiphertextIterator(self)
 	
 	def __init__(self):
 		"""

@@ -35,6 +35,8 @@
 # ============================================================================
 
 from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem
+from plonevotecryptolib.Ciphertext import Ciphertext
+from plonevotecryptolib.utilities.BitStream import BitStream
 
 class PrivateKey:
 	"""
@@ -83,12 +85,46 @@ class PrivateKey:
 			bitstream::Bitstream	-- A bitstream containing the unencrypted 
 									   data.
 		"""
-		pass
+		# TODO: possible check that the ciphertext is compatible with the 
+		# cryptosystem and public key corresponding to this private key
+		# (use a hash? or the full info?)
+		
+		# We read and decrypt the ciphertext block by block
+		# See "Handbook of Applied Cryptography" Algorithm 8.18
+		bitstream = BitStream()
+		
+		block_size = self.cryptosystem.get_nbits() - 1
+		prime = self.cryptosystem.get_prime()
+		key = self._key
+		
+		for gamma, delta in ciphertext:
+			assert max(gamma, delta) < 2**(block_size + 1), "The ciphertext object includes blocks larger than the expected block size."
+			m = (pow(gamma, prime - 1 - key, prime) * delta) % prime
+			bitstream.put_num(m, block_size)
+			
+		return bitstream
+			
 	
 	def decrypt_to_text(self, ciphertext):
 		"""
+		Decrypts the given ciphertext into its text contents as a string
+		
+		This method assumes that the ciphertext contains an encrypted stream of 
+		data in the format of Note 001 of the Ciphertext.py file, were message 
+		contains string information (as opposed to a binary format).
+			[size (64 bits) | message (size bits) | padding (X bits) ]
+		
+		Arguments:
+			ciphertext::Ciphertext	-- An encrypted Ciphertext object, 
+									   containing data in the above format.
+		
+		Returns:
+			string::string	-- Decrypted "message" as a string.
 		"""
-		pass
+		bitstream = self.decrypt_to_bitstream(ciphertext)
+		bitstream.seek(0)
+		length = bitstream.get_num(64)
+		return bitstream.get_string(length)
 		
 	def to_file(self, filename):
 		"""

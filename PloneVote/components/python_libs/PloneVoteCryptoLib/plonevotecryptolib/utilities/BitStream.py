@@ -251,10 +251,11 @@ class BitStream:
 			self._current_cell += 1
 			
 		# Finally add the trailing bits from the last cell
-		displacement = self._cell_size - bits
-		trailing_bits = (self._cells[self._current_cell] >> displacement) % 2**bits
-		num = (num << bits) | trailing_bits
-		self._current_cell_bit = bits
+		if(bits > 0):
+			displacement = self._cell_size - bits
+			trailing_bits = (self._cells[self._current_cell] >> displacement) % 2**bits
+			num = (num << bits) | trailing_bits
+			self._current_cell_bit = bits
 		
 		return num
 		

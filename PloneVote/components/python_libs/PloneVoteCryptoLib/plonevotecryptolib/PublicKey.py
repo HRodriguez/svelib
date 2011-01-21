@@ -41,9 +41,6 @@ from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem
 from plonevotecryptolib.Ciphertext import Ciphertext
 from plonevotecryptolib.utilities.BitStream import BitStream
 
-_MESSAGE_SIZE_SPACE = 8 # (see Ciphertext, Note 001)
-_MAX_MESSAGE_SIZE = 2**(_MESSAGE_SIZE_SPACE*8)
-
 class MessageToLongError(Exception):
 	"""
 	The given message to encrypt is larger than the allowed maximum.
@@ -110,15 +107,16 @@ class PublicKey:
 		formated_bitstream = BitStream()
 		
 		# The first 64 encode the size of the actual data in bits
+		SIZE_BLOCK_LENGTH = 64
 		size_in_bits = bitstream.get_length()
 		
-		if(size_in_bits >= 2**64):
+		if(size_in_bits >= 2**SIZE_BLOCK_LENGTH):
 			raise ValueError("The size of the bitstream to encrypt is larger " \
 							 "than 16 Exabits. The current format for  " \
 							 "PloneVote ciphertext only allows encrypting a  " \
 							 "maximum of 16 Exabits of information.")
 		
-		formated_bitstream.put_num(size_in_bits, 64)
+		formated_bitstream.put_num(size_in_bits, SIZE_BLOCK_LENGTH)
 		
 		# We then copy the contents of the original bitstream
 		bitstream.seek(0)
@@ -165,13 +163,17 @@ class PublicKey:
 		
 		plaintext_bits_left = formated_bitstream.get_length()
 		while(plaintext_bits_left > 0):
-			
+		
 			# get next block (message, m, etc) to encrypt
 			if(plaintext_bits_left >= block_size):
 				block = formated_bitstream.get_num(block_size)
 				plaintext_bits_left -= block_size
 			else:
 				block = formated_bitstream.get_num(plaintext_bits_left)
+				# Encrypt as if the stream was filled with 0's past its end
+				# this avoids introducing a 0's gap during decryption to 
+				# bitstream
+				block = block << (block_size - plaintext_bits_left)
 				plaintext_bits_left = 0
 			
 			# Select a random integer k, 1 <= k <= p − 2
