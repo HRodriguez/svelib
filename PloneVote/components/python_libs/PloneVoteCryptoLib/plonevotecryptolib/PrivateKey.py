@@ -34,7 +34,10 @@
 # THE SOFTWARE.
 # ============================================================================
 
-from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem
+import xml.dom.minidom
+
+from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem, EGStub
+from plonevotecryptolib.PublicKey import PublicKey
 from plonevotecryptolib.Ciphertext import Ciphertext
 from plonevotecryptolib.utilities.BitStream import BitStream
 
@@ -126,15 +129,138 @@ class PrivateKey:
 		length = bitstream.get_num(64)
 		return bitstream.get_string(length)
 		
+	def _to_xml(self):
+		"""
+		Returns an xml document containing a representation of this private key.
+		
+		Returns:
+			doc::xml.dom.minidom.Document
+		"""
+		doc = xml.dom.minidom.Document()
+		root_element = doc.createElement("PloneVotePrivateKey")
+		doc.appendChild(root_element)
+		
+		priv_key_element = doc.createElement("PrivateKey")
+		priv_key_str = hex(self._key)[2:]		# Remove leading '0x'
+		if(priv_key_str[-1] == 'L'): 
+			priv_key_str = priv_key_str[0:-1]		# Remove trailing 'L'
+		priv_key_element.appendChild(doc.createTextNode(priv_key_str))
+		root_element.appendChild(priv_key_element)
+		
+		pub_key_element = doc.createElement("PublicKey")
+		pub_key_str = hex(self.public_key._key)[2:]		# Remove leading '0x'
+		if(pub_key_str[-1] == 'L'): 
+			pub_key_str = pub_key_str[0:-1]		# Remove trailing 'L'
+		pub_key_element.appendChild(doc.createTextNode(pub_key_str))
+		root_element.appendChild(pub_key_element)
+		
+		cs_scheme_element = self.cryptosystem.to_dom_element(doc)
+		root_element.appendChild(cs_scheme_element)
+		
+		return doc
+		
 	def to_file(self, filename):
 		"""
 		Saves this private key to a file.
 		"""
-		pass
+		doc = self._to_xml()
+		
+		file_object = open(filename, "w")
+		file_object.write(doc.toprettyxml())
+		file_object.close()
 		
 	@classmethod
 	def from_file(self, filename):
 		"""
 		Loads a private key from file.
 		"""
-		pass
+		doc = xml.dom.minidom.parse(filename)
+		
+		# Check root element
+		if(len(doc.childNodes) != 1 or 
+			doc.childNodes[0].nodeType != doc.childNodes[0].ELEMENT_NODE or
+			doc.childNodes[0].localName != "PloneVotePrivateKey"):
+			
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"A PloneVoteCryptoLib stored private key file must be an " \
+				"XML file with PloneVotePrivateKey as its root element.")	
+		
+		root_element = doc.childNodes[0]
+		
+		cs_scheme_element = pub_key_element = priv_key_element = None
+		
+		# Retrieve individual "tier 2" nodes
+		for node in root_element.childNodes:
+			if node.nodeType == node.ELEMENT_NODE:
+				if node.localName == "PublicKey":
+					pub_key_element = node
+				elif node.localName == "PrivateKey":
+					priv_key_element = node
+				elif node.localName == "CryptoSystemScheme":
+					cs_scheme_element = node
+					
+		# Check CryptoSystemScheme node
+		if(cs_scheme_element == None):
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"A PloneVoteCryptoLib stored public key file must contain " \
+				"a CryptoSystemScheme element")
+		
+		# Parse the inner CryptoSystemScheme element using the parser defined
+		# in EGStub
+		(nbits, prime, generator) = \
+					EGStub.parse_crytosystem_scheme_xml_node(cs_scheme_element)	
+		
+		# Check the public key information
+		if(pub_key_element == None):
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"The PloneVoteCryptoLib stored private key file must contain " \
+				"a <PublicKey> element, with the value of the public key " \
+				" inside it.")
+				
+		if(len(pub_key_element.childNodes) != 1 or 
+			pub_key_element.childNodes[0].nodeType != pub_key_element.childNodes[0].TEXT_NODE):
+			
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"The PloneVoteCryptoLib stored private key file must contain " \
+				"a <PublicKey> element, with the value of the public key " \
+				" inside it.")
+		
+		pub_key_str = pub_key_element.childNodes[0].data.strip()  # trim spaces
+		pub_key = int(pub_key_str, 16)
+		
+		if(not (0 <= pub_key < prime)):
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"The value of the public key given in the file is invalid " \
+				"for the indicated cryptosystem (could the file be corrupt?).")
+		
+		# Check the private key information
+		if(priv_key_element == None):
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"The PloneVoteCryptoLib stored private key file must contain " \
+				"a <PrivateKey> element, with the value of the private key " \
+				" inside it.")
+				
+		if(len(priv_key_element.childNodes) != 1 or 
+			priv_key_element.childNodes[0].nodeType != priv_key_element.childNodes[0].TEXT_NODE):
+			
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"The PloneVoteCryptoLib stored private key file must contain " \
+				"a <PrivateKey> element, with the value of the private key " \
+				" inside it.")
+		
+		priv_key_str = priv_key_element.childNodes[0].data.strip() # trim spaces
+		priv_key = int(priv_key_str, 16)
+		
+		if(not (1 <= priv_key <= prime - 2)):
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"The value of the private key given in the file is invalid " \
+				"for the indicated cryptosystem (could the file be corrupt?).")
+		
+		# Construct the cryptosystem object
+		cryptosystem = EGCryptoSystem.load(nbits, prime, generator)
+		
+		# Construct the PublicKey object
+		public_key = PublicKey(cryptosystem, pub_key)
+		
+		# Construct and return the PrivateKey object
+		return PrivateKey(cryptosystem, public_key, priv_key)

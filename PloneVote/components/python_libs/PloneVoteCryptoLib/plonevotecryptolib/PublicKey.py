@@ -224,12 +224,12 @@ class PublicKey:
 		root_element.setAttribute("type", "single")
 		doc.appendChild(root_element)
 		
-		name_element = doc.createElement("PublicKey")
+		key_element = doc.createElement("PublicKey")
 		key_str = hex(self._key)[2:]		# Remove leading '0x'
 		if(key_str[-1] == 'L'): 
 			key_str = key_str[0:-1]			# Remove trailing 'L'
-		name_element.appendChild(doc.createTextNode(key_str))
-		root_element.appendChild(name_element)
+		key_element.appendChild(doc.createTextNode(key_str))
+		root_element.appendChild(key_element)
 		
 		cs_scheme_element = self.cryptosystem.to_dom_element(doc)
 		root_element.appendChild(cs_scheme_element)
@@ -318,8 +318,8 @@ class PublicKey:
 		
 		if(not (0 <= key < prime)):
 			raise InvalidPloneVoteCryptoFileError(filename, 
-				"The value of the public key given in the file is invalid for " \
-				"the indicated cryptosystem (could the file be corrupt?).")
+				"The value of the public key given in the file is invalid " \
+				"for the indicated cryptosystem (could the file be corrupt?).")
 		
 		# Construct the cryptosystem object
 		cryptosystem = EGCryptoSystem.load(nbits, prime, generator)
