@@ -6,7 +6,7 @@
 		+ plonevote.gen_cryptosys tool
 	18 Ene:
 		+ PrivateKey, PublicKey, KeyPair : generation
-		- encrypt/decrypt bitstream/strings
+		+ encrypt/decrypt bitstream/strings
 	19 Ene:
 		- save/load keys
 		- armored encrypted text format

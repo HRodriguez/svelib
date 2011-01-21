@@ -73,7 +73,7 @@ from plonevotecryptolib.PVCExceptions import *
 from plonevotecryptolib.utilities.TaskMonitor import TaskMonitor
 # ============================================================================
 
-
+__all__ = ["EGCryptoSystem", "EGStub", "EGCSUnconstructedStateError"]
 
 # ============================================================================
 # Helper functions:
@@ -512,6 +512,32 @@ class EGCryptoSystem:
 		"""
 		return EGStub(name, description, self._nbits, self._prime, 
 					  self._generator)
+	
+	def to_dom_element(self, doc):
+		"""
+		Returns a CryptoSystemScheme XML/DOM element for this cryptosystem.
+		
+		The CryptoSystemScheme XML element is embedded into the private and 
+		public key XML files and describes only the fundamental values (nbits, 
+		prime and generator) of the cryptosystem, omitting the name and 
+		description.
+		
+		Note that if you wish to save the cryptosystem or cryptosystem stub to 
+		a file or some other permanent storage, it is far more likely that you 
+		want to use the EGStub.to_xml method (or better yet, to_file) rather 
+		than this one.
+		
+		Arguments:
+			doc::xml.dom.minidom.Document	-- The document of which the 
+					  CryptoSystemScheme XML element will eventually form part. 
+					  Note that this method does not append the node to the 
+					  document, it just returns it as an object.
+		
+		Returns:
+			node::xml.dom.minidom.Node
+		"""
+		string = "This should never be printed. - EGCryptoSystem.py"
+		return self.to_stub(string, string).to_dom_element(doc)
 		
 	def to_file(self, name, description, filename):
 		"""
@@ -612,28 +638,31 @@ class EGStub:
 	    							   Z_{p}^{*}
 		"""
 		return EGCryptoSystem.load(self.nbits, self.prime, self.generator)
-		
-	def _to_xml(self):
+	
+	def to_dom_element(self, doc):
 		"""
-		Returns an xml document containing a representation of this EGStub.
+		Returns a CryptoSystemScheme XML/DOM element for this cryptosystem stub.
+		
+		The CryptoSystemScheme XML element is embedded into the private and 
+		public key XML files and describes only the fundamental values (nbits, 
+		prime and generator) of the cryptosystem, omitting the name and 
+		description.
+		
+		Note that if you wish to save the cryptosystem or cryptosystem stub to 
+		a file or some other permanent storage, it is far more likely that you 
+		want to use the to_xml method (or better yet, to_file) rather than this 
+		one.
+		
+		Arguments:
+			doc::xml.dom.minidom.Document	-- The document of which the 
+					  CryptoSystemScheme XML element will eventually form part. 
+					  Note that this method does not append the node to the 
+					  document, it just returns it as an object.
 		
 		Returns:
-			doc::xml.dom.minidom.Document
+			node::xml.dom.minidom.Node
 		"""
-		doc = xml.dom.minidom.Document()
-		root_element = doc.createElement("PloneVoteCryptoSystem")
-		doc.appendChild(root_element)
-		
-		name_element = doc.createElement("name")
-		name_element.appendChild(doc.createTextNode(self.name))
-		root_element.appendChild(name_element)
-		
-		description_element = doc.createElement("description")
-		description_element.appendChild(doc.createTextNode(self.description))
-		root_element.appendChild(description_element)
-		
 		cs_scheme_element = doc.createElement("CryptoSystemScheme")
-		root_element.appendChild(cs_scheme_element)
 		
 		nbits_element = doc.createElement("nbits")
 		nbits_element.appendChild(doc.createTextNode(str(self.nbits)))
@@ -653,13 +682,37 @@ class EGStub:
 		generator_element.appendChild(doc.createTextNode(generator_str))
 		cs_scheme_element.appendChild(generator_element)
 		
+		return cs_scheme_element
+		
+	def to_xml(self):
+		"""
+		Returns an xml document containing a representation of this EGStub.
+		
+		Returns:
+			doc::xml.dom.minidom.Document
+		"""
+		doc = xml.dom.minidom.Document()
+		root_element = doc.createElement("PloneVoteCryptoSystem")
+		doc.appendChild(root_element)
+		
+		name_element = doc.createElement("name")
+		name_element.appendChild(doc.createTextNode(self.name))
+		root_element.appendChild(name_element)
+		
+		description_element = doc.createElement("description")
+		description_element.appendChild(doc.createTextNode(self.description))
+		root_element.appendChild(description_element)
+		
+		cs_scheme_element = self.to_dom_element(doc)
+		root_element.appendChild(cs_scheme_element)
+		
 		return doc
 		
 	def to_file(self, filename):
 		"""
 		Stores this instance of EGStub (as XML) in the given file.
 		"""
-		doc = self._to_xml()
+		doc = self.to_xml()
 		
 		file_object = open(filename, "w")
 		file_object.write(doc.toprettyxml())
@@ -802,7 +855,7 @@ class EGStub:
 				"the cryptosystem's description.")
 		
 		# Get text without leading or trailing spaces
-		description = 	description_element.childNodes[0].data.strip()
+		description = description_element.childNodes[0].data.strip()
 		
 		# Check CryptoSystemScheme node
 		if(cs_scheme_element == None):
