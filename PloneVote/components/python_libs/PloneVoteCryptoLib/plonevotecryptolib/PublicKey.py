@@ -35,6 +35,10 @@
 # ============================================================================
 
 import xml.dom.minidom
+try:
+    from hashlib import sha1
+except ImportError:
+    from sha import sha as sha1
 
 # secure version of python's random:
 from Crypto.Random.random import StrongRandom
@@ -66,6 +70,25 @@ class PublicKey:
 	"""
 	
 	cryptosystem = None
+	
+	def get_fingerprint(self):
+		"""
+		Gets a fingerprint of the current public key.
+		
+		This fingerprint should be stored with any text encrypted with this 
+		public key, in order to facilitate checking compatibility with a 
+		particular key pair for future decryption or manipulation.
+		
+		This uses a SHA1 (160 bits) hash of various cryptosystem and public key 
+		values. Since this value is only informative, the hash algorithm's 
+		resistance to attacks is not important to us.
+		"""
+		fingerprint = sha1()
+		fingerprint.update(hex(self.cryptosystem.get_nbits()))
+		fingerprint.update(hex(self.cryptosystem.get_prime()))
+		fingerprint.update(hex(self.cryptosystem.get_generator()))
+		fingerprint.update(hex(self._key))
+		return fingerprint.hexdigest()	
 	
 	def __init__(self, cryptosystem, public_key_value):
 		"""
