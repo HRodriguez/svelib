@@ -32,7 +32,22 @@
 # THE SOFTWARE.
 # ============================================================================
 
+__all__ = ["BitStream", "NotEnoughBitsInStreamError"]
+
 _CELL_SIZE = 32
+
+# The mapping from six bit binary number to character in a safe Base64 encoding 
+# The encoding uses the same characters as in RFC3548.
+_base64_encoding_table = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', \
+	'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', \
+	'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', \
+	'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', \
+	'3', '4', '5', '6', '7', '8', '9', '+', '/']
+
+_base64_decoding_table = {}
+for i in range(0,64):
+	_base64_decoding_table[_base64_encoding_table[i]] = i
+
 
 class NotEnoughBitsInStreamError(Exception):
 	"""
@@ -314,6 +329,128 @@ class BitStream:
 			s += chr(self.get_byte())
 		
 		return s
+	
+	def put_base64(self, base64_data):
+		"""
+		Put the given base64 encoded data into the BitStream.
+		
+		The format of the base64 encoded data should match that defined by 
+		RFC3548, including padding characters ("=") which are used subtract 
+		padding bits from the base64 representation as indicated in that RFC.
+		
+		Please note that base64 data must always contain a multiple of eight 
+		bits (that is, must be byte aligned). This is because the padding 
+		scheme of RFC3548 assumes data organized in bytes as the input to any 
+		base64 encoder.
+		
+		Arguments:
+			base64_data::string	-- Arbitrary binary data encode in base64.
+		"""
+		length = len(base64_data) * 6
+		# Remove padding:
+		if(base64_data[-1] == "="):
+			if(base64_data[-2] == "="):
+				# Remove two BYTES of padding
+				length -= 16
+			else:
+				# Remove one BYTE of padding
+				length -= 8
+		
+		# Check resulting length (ie. to guard against things like "a==")
+		if(length < 0):
+			raise ValueError("The given string is not valid base64 encoded " \
+							  "data.")
+		if(length % 8 != 0):
+			raise ValueError("The given string is not valid base64 encoded " \
+							  "data: base64 encoded data must be a multiple " \
+							  "of eight bits in length before encoding. The " \
+							  "given data would be %d bits long once decoded " \
+							  "from base64")
+		
+		# Decode and insert a character at a time.
+		# (This is likely seriously inefficient, but early optimization is the 
+		# O(sqrt(n)) of all evil, so lets not get bitshifty here unless we need 
+		# to)
+		bit_pos = 0	# The current bit position in the base64 data
+		while(bit_pos < length):
+			c = base64_data[bit_pos / 6]
+			try:
+				val = _base64_decoding_table[c]
+			except KeyError:
+				raise ValueError("The given string is not valid base64 " \
+							  "encoded data. Character \'%s\' is not a valid " \
+							  "base64 code point" % c)
+				
+			if(length - bit_pos >= 6):
+				# Copy whole character
+				self.put_num(val, 6)
+			else:
+				# Part of that character is 0's padding, copy only the 
+				# non-padding part of the character.
+				padding_bits = (bit_pos + 6) - length
+				assert 0 < padding_bits, "padding_bits should never be negative"
+				val = val >> padding_bits
+				self.put_num(val, 6 - padding_bits)
+			
+			bit_pos += 6
+	
+	def get_base64(self, bit_length):
+		"""
+		Retrieve the given amount of data from the BitStream, encoded in base64.
+		
+		The format of the base64 encoded data matches that defined by RFC3548.
+		This includes padding characters ("=") if the requested amount of bits 
+		of data is not a multiple of 24.
+		
+		Arguments:
+			bit_length::int	-- The amount of data to return as base64. Must be 
+							   a multiple of 8 (byte aligned), to comply with 
+							   RFC3548's specification about the input to 
+							   base64 encoders.
+		
+		Returns:
+			base64::string	-- The next bit_length bits in the stream, encoded 
+							   in base64.
+		"""
+		if(bit_length > (self.get_length() - self.get_current_pos())):
+			raise NotEnoughBitsInStreamError("Not enough bits in the bitstream.")
+			
+		if(bit_length % 8 != 0):
+			raise ValueError("The number of bits to be retrieved as base64 " \
+							  "encoded data must be a multiple of 8. This in " \
+							  "order to satisfy RFC3548 and its padding " \
+							  "specification, which require input to a base64 "\
+							  "encoder be given in whole bytes.")
+		
+		base64_data = ""
+		
+		# Calculate needed padding, in bits
+		padding_bits = 24 - (bit_length % 24)
+		
+		# Get all complete characters, without need for padding
+		for i in range(0, bit_length / 6):
+			base64_data += _base64_encoding_table[self.get_num(6)]
+		
+		# Get "partial character" bits
+		remaining_bit_length = bit_length % 6
+		if(remaining_bit_length > 0):
+			val = self.get_num(remaining_bit_length)
+			displacement = 6 - remaining_bit_length
+			val = val << displacement
+			base64_data += _base64_encoding_table[val]
+			padding_bits -= displacement
+		
+		# Pad
+		assert padding_bits % 6 == 0, "padding_bits must be a multiple of 6 " \
+							  "bits in order to be translatable into base64 " \
+							  "encoded characters of padding."
+							  
+		padding_chars = padding_bits / 6
+		for i in range(0, padding_chars):
+			base64_data += "="
+			
+		return base64_data
+				
 
 	def put_bitstream_copy(self, bitstream):
 		"""
