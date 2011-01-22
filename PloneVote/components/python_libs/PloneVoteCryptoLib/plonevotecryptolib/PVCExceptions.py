@@ -38,6 +38,9 @@ class ParameterError(Exception):
     Attributes:
         msg::string	-- explanation of the error
     """
+    
+    def __str__(self):
+		return self.msg
 
     def __init__(self, msg):
     	"""Create a new ParameterError exception

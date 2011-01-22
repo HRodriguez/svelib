@@ -71,7 +71,7 @@ def run_tool(key_file, in_file, out_file):
 	# Open the input file
 	print "Reading input file..."
 	try:
-		in_f = open(in_file, 'rb')	# read, binary
+		in_f = open(in_file, 'rb')
 	except Exception, e:
 		print "Problem while opening input file %s: %s" % (in_file, e)
 	
@@ -136,7 +136,7 @@ def main():
 			print_usage()
 			sys.exit(2)			
     
-    # Run cryptosystem generation
+    # Run encryption
 	run_tool(key_file, in_file, out_file)
 
 if __name__ == "__main__":

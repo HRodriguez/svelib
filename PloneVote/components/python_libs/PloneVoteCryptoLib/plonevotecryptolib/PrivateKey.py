@@ -82,16 +82,21 @@ class PrivateKey:
 			[size (64 bits) | message (size bits) | padding (X bits) ]
 		
 		Arguments:
-			ciphertext::Ciphertext	-- An encrypted Ciphertext object
-		
-		Returns:
-			bitstream::Bitstream	-- A bitstream containing the unencrypted 
-									   data.
+			ciphertext::Ciphertext	-- An encrypted Ciphertext object.
 			task_monitor::TaskMonitor	-- A task monitor for this task.
 			force:bool	-- Set to true if you wish to force a decryption 
 						   attempt, even when the ciphertext's stored public key
 						   fingerprint does not match that of the public key 
 						   associated with this private key.
+		
+		Returns:
+			bitstream::Bitstream	-- A bitstream containing the unencrypted 
+									   data.
+		
+		Throws:
+			IncompatibleCiphertextError -- The given ciphertext does not appear 
+										   to be decryptable with the selected 
+										   private key.
 		"""
 		# Check that the public key fingerprint stored in the ciphertext 
 		# matches the public key associated with this private key.
@@ -142,6 +147,11 @@ class PrivateKey:
 		
 		Returns:
 			string::string	-- Decrypted "message" as a string.
+		
+		Throws:
+			IncompatibleCiphertextError -- The given ciphertext does not appear 
+										   to be decryptable with the selected 
+										   private key.
 		"""
 		bitstream = self.decrypt_to_bitstream(ciphertext, task_monitor, force)
 		bitstream.seek(0)

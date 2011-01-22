@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  plonevote.encrypt.py : A tool to encrypt a file using PloneVoteCryptoLib.
+#  plonevote.decrypt.py : A tool to decrypt a file using PloneVoteCryptoLib.
 #
 #  Part of the PloneVote cryptographic library (PloneVoteCryptoLib)
 #
@@ -31,7 +31,8 @@
 import sys
 import getopt
 
-from plonevotecryptolib.PublicKey import PublicKey
+from plonevotecryptolib.PrivateKey import PrivateKey
+from plonevotecryptolib.Ciphertext import Ciphertext
 from plonevotecryptolib.utilities.BitStream import BitStream
 from plonevotecryptolib.PVCExceptions import *
 
@@ -41,65 +42,68 @@ def print_usage():
 	"""
 	print """USAGE:
 		  
-		  plonevote.encrypt.py --key=public_key.pvpubkey --in=file.ext --out=file.pvencrypted
+		  plonevote.decrypt.py --key=private_key.pvprivkey --in=file.pvencrypted --out=file.ext
 		  
-		  plonevote.encrypt.py (--help|-h)
+		  plonevote.decrypt.py (--help|-h)
 		  
 		  Arguments can be given in any order. All arguments are mandatory.
 		  	
-		  	--key=public_key.pvpubkey  : The file containing the public key used for encryption.
+		  	--key=private_key.pvprivkey  : The file containing the private key used for decryption.
 		  	
-		  	--in=file.ext	: The source (input) file to encrypt.
+		  	--in=file.pvencrypted	: The source (input) encrypted file to decrypt.
 		  	
-		  	--out=file.pvencrypted	: The destination (output) file that will contain the encrypted data.
+		  	--out=file.ext	: The destination (output) file that will contain the decrypted (original plaintext) data.
 		  	
 		  	--help|-h : Shows this message
 		  """
 	
 def run_tool(key_file, in_file, out_file):
 	"""
-	Runs the plonevote.encrypt tool and encrypts in_file into out_file.
+	Runs the plonevote.decrypt tool and decrypts in_file into out_file.
 	"""
-	# Load the public key
-	print "Loading public key..."
+	# Load the private key
+	print "Loading private key..."
 	try:
-		public_key = PublicKey.from_file(key_file)
+		private_key = PrivateKey.from_file(key_file)
 	except InvalidPloneVoteCryptoFileError, e:
-		print "Invalid public key file (%s): %s" % (key_file, e.msg)
+		print "Invalid private key file (%s): %s" % (key_file, e.msg)
 		sys.exit(2)
 	
-	# Open the input file
-	print "Reading input file..."
+	# Open the input encrypted data
+	print "Loading encrypted data..."
 	try:
-		in_f = open(in_file, 'rb')	# read, binary
-	except Exception, e:
-		print "Problem while opening input file %s: %s" % (in_file, e)
+		ciphertext = Ciphertext.from_file(in_file)
+	except InvalidPloneVoteCryptoFileError, e:
+		print "Invalid PloneVote encrypted file (%s): %s" % (key_file, e.msg)
+		sys.exit(2)
 	
-	# Read the whole file into a bitstream
-	bitstream = BitStream()
+	# Decrypt to bitstream
+	print "Decrypting..."	
 	try:
-		read_quantum = 1024 # KB at a time
-		bytes = in_f.read(read_quantum)
-		while(bytes):
-			for byte in bytes:
-				bitstream.put_byte(ord(byte))
-			bytes = in_f.read(read_quantum)
-	except Exception, e:
-		print "Problem while reading from input file %s: %s" % (in_file, e)
+		bitstream = private_key.decrypt_to_bitstream(ciphertext)
+	except IncompatibleCiphertextError, e:
+		print "Incompatible private key and ciphertext error: %s" % s.msg
 	
-	in_f.close()
-	
-	# Encrypt bitstream
-	ciphertext = public_key.encrypt_bitstream(bitstream)
-	
-	# Save the ciphertext to the output file
-	print "Encrypting..."
+	# Save the resulting plaintext to the output file
+	print "Writing decrypted data..."
 	try:
-		ciphertext.to_file(out_file)
+		out_f = open(out_file, 'wb')
 	except Exception, e:
-		print "Problem while saving the output file %s: %s" % (in_file, e.msg)
+		print "Problem while opening output file %s: %s" % (out_file, e)
 	
-		
+	# Remember that the bitstream is in the format 
+	# [size (64 bits) | message (size bits) | padding]
+	bitstream.seek(0)
+	length = bitstream.get_num(64)
+	
+	try:
+		for i in range(0, length / 8):
+			byte = bitstream.get_byte()
+			out_f.write(chr(byte))
+	except Exception, e:
+		print "Problem while writing to output file %s: %s" % (out_file, e)
+	
+	out_f.close()
 
 def main():
 	"""
@@ -136,7 +140,7 @@ def main():
 			print_usage()
 			sys.exit(2)			
     
-    # Run cryptosystem generation
+    # Run decryption
 	run_tool(key_file, in_file, out_file)
 
 if __name__ == "__main__":

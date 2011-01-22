@@ -56,6 +56,9 @@ class NotEnoughBitsInStreamError(Exception):
 	the stream from the current position to its end.
 	"""
 	
+	def __str__(self):
+		return self.msg
+	
 	def __init__(self, msg):
 		"""
 		Constructs a new NotEnoughBitsInStreamError
@@ -145,7 +148,7 @@ class BitStream:
 		
 		# Now insert num into the cleared space
 		num = num << (self._cell_size - end_bit - 1)
-		self._cells[cell_num] |= num
+		self._cells[cell_num] = (self._cells[cell_num] | num) % self._cell_max
 	
 	def put_num(self, num, bit_length):
 		"""
