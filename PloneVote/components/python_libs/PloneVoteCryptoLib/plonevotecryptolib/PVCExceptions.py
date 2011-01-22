@@ -170,3 +170,21 @@ class InvalidPloneVoteCryptoFileError(ParameterError):
         ParameterError.__init__(self, msg)
 
 
+class IncompatibleCiphertextError(ParameterError):
+    """
+    Signals an attempt to decrypt a ciphertext with an incompatible private key.
+    
+    This exception should be raised when attempting to decrypt a ciphertext 
+    (or create a partial decryption) with a private key that is not correct for 
+    said ciphertext.
+
+    Attributes:
+        msg::string			-- explanation of the error
+    """
+
+    def __init__(self, msg):
+    	"""Create a new IncompatibleCiphertextError exception
+    	"""
+        ParameterError.__init__(self, msg)
+
+

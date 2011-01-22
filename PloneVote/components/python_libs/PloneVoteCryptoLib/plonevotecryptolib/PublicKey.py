@@ -184,7 +184,8 @@ class PublicKey:
 		
 		# We pull data from the bitstream one block at a time and encrypt it
 		formated_bitstream.seek(0)
-		ciphertext = Ciphertext()
+		ciphertext = \
+			Ciphertext(self.cryptosystem.get_nbits(), self.get_fingerprint())
 		
 		plaintext_bits_left = formated_bitstream.get_length()
 		while(plaintext_bits_left > 0):
@@ -270,7 +271,7 @@ class PublicKey:
 		file_object.close()
 		
 	@classmethod
-	def from_file(self, filename):
+	def from_file(cls, filename):
 		"""
 		Loads a public key from file.
 		"""
@@ -348,4 +349,4 @@ class PublicKey:
 		cryptosystem = EGCryptoSystem.load(nbits, prime, generator)
 		
 		# Construct and return the PublicKey object
-		return PublicKey(cryptosystem, key)
+		return cls(cryptosystem, key)

@@ -72,7 +72,7 @@ class PrivateKey:
 		self.public_key = public_key
 		self._key = private_key_value
 		
-	def decrypt_to_bitstream(self, ciphertext):
+	def decrypt_to_bitstream(self, ciphertext, task_monitor=None, force=False):
 		"""
 		Decrypts the given ciphertext into a bitstream.
 		
@@ -87,10 +87,24 @@ class PrivateKey:
 		Returns:
 			bitstream::Bitstream	-- A bitstream containing the unencrypted 
 									   data.
+			task_monitor::TaskMonitor	-- A task monitor for this task.
+			force:bool	-- Set to true if you wish to force a decryption 
+						   attempt, even when the ciphertext's stored public key
+						   fingerprint does not match that of the public key 
+						   associated with this private key.
 		"""
-		# TODO: possible check that the ciphertext is compatible with the 
-		# cryptosystem and public key corresponding to this private key
-		# (use a hash? or the full info?)
+		# Check that the public key fingerprint stored in the ciphertext 
+		# matches the public key associated with this private key.
+		if(not force):
+			if(ciphertext.nbits != self.cryptosystem.get_nbits()):
+				raise IncompatibleCiphertextError("The given ciphertext is " \
+						"not decryptable with the selected private key: " \
+						"incompatible cryptosystem/key sizes.")
+			
+			if(ciphertext.pk_fingerprint != self.public_key.get_fingerprint()):
+				raise IncompatibleCiphertextError("The given ciphertext is " \
+						"not decryptable with the selected private key: " \
+						"public key fingerprint mismatch.")
 		
 		# We read and decrypt the ciphertext block by block
 		# See "Handbook of Applied Cryptography" Algorithm 8.18
@@ -108,7 +122,7 @@ class PrivateKey:
 		return bitstream
 			
 	
-	def decrypt_to_text(self, ciphertext):
+	def decrypt_to_text(self, ciphertext, task_monitor=None, force=False):
 		"""
 		Decrypts the given ciphertext into its text contents as a string
 		
@@ -120,11 +134,16 @@ class PrivateKey:
 		Arguments:
 			ciphertext::Ciphertext	-- An encrypted Ciphertext object, 
 									   containing data in the above format.
+			task_monitor::TaskMonitor	-- A task monitor for this task.
+			force:bool	-- Set to true if you wish to force a decryption 
+						   attempt, even when the ciphertext's stored public key
+						   fingerprint does not match that of the public key 
+						   associated with this private key.
 		
 		Returns:
 			string::string	-- Decrypted "message" as a string.
 		"""
-		bitstream = self.decrypt_to_bitstream(ciphertext)
+		bitstream = self.decrypt_to_bitstream(ciphertext, task_monitor, force)
 		bitstream.seek(0)
 		length = bitstream.get_num(64)
 		return bitstream.get_string(length)
@@ -170,7 +189,7 @@ class PrivateKey:
 		file_object.close()
 		
 	@classmethod
-	def from_file(self, filename):
+	def from_file(cls, filename):
 		"""
 		Loads a private key from file.
 		"""
@@ -263,4 +282,4 @@ class PrivateKey:
 		public_key = PublicKey(cryptosystem, pub_key)
 		
 		# Construct and return the PrivateKey object
-		return PrivateKey(cryptosystem, public_key, priv_key)
+		return cls(cryptosystem, public_key, priv_key)

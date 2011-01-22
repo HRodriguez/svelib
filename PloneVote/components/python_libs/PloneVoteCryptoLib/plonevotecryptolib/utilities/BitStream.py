@@ -425,7 +425,11 @@ class BitStream:
 		base64_data = ""
 		
 		# Calculate needed padding, in bits
-		padding_bits = 24 - (bit_length % 24)
+		remainder = bit_length % 24
+		if(remainder == 0):
+			padding_bits = 0
+		else:
+			padding_bits = 24 - remainder
 		
 		# Get all complete characters, without need for padding
 		for i in range(0, bit_length / 6):
