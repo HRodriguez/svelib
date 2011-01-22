@@ -119,10 +119,19 @@ class PrivateKey:
 		prime = self.cryptosystem.get_prime()
 		key = self._key
 		
+		# Check if we have a task monitor and register with it
+		if(task_monitor != None):
+			# One tick per block
+			ticks = ciphertext.get_length()
+			decrypt_task_mon = \
+				task_monitor.new_subtask("Decrypt data", expected_ticks = ticks)
+		
 		for gamma, delta in ciphertext:
 			assert max(gamma, delta) < 2**(block_size + 1), "The ciphertext object includes blocks larger than the expected block size."
 			m = (pow(gamma, prime - 1 - key, prime) * delta) % prime
 			bitstream.put_num(m, block_size)
+			
+			if(decrypt_task_mon != None): decrypt_task_mon.tick()
 			
 		return bitstream
 			

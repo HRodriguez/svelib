@@ -34,6 +34,7 @@
 # THE SOFTWARE.
 # ============================================================================
 
+import math
 import xml.dom.minidom
 try:
     from hashlib import sha1
@@ -185,9 +186,20 @@ class PublicKey:
 		# We pull data from the bitstream one block at a time and encrypt it
 		formated_bitstream.seek(0)
 		ciphertext = \
-			Ciphertext(self.cryptosystem.get_nbits(), self.get_fingerprint())
+			Ciphertext(self.cryptosystem.get_nbits(), self.get_fingerprint())		
 		
 		plaintext_bits_left = formated_bitstream.get_length()
+		
+		# Check if we have a task monitor and register with it
+		if(task_monitor != None):
+			# We will do two tick()s per block to encrypt: one for generating 
+			# the gamma component of the ciphertext block and another for the 
+			# delta component (those are the two time intensive steps, 
+			# because of exponentiation). 
+			ticks = math.ceil((1.0 * plaintext_bits_left) / block_size) * 2
+			encrypt_task_mon = \
+				task_monitor.new_subtask("Encrypt data", expected_ticks = ticks)
+		
 		while(plaintext_bits_left > 0):
 		
 			# get next block (message, m, etc) to encrypt
@@ -207,7 +219,10 @@ class PublicKey:
 			
 			# Compute gamma and delta
 			gamma = pow(generator, k, prime)
+			if(encrypt_task_mon != None): encrypt_task_mon.tick()
+			
 			delta = (block * pow(self._key, k, prime)) % prime
+			if(encrypt_task_mon != None): encrypt_task_mon.tick()
 			
 			# Add this encrypted data portion to the ciphertext object
 			ciphertext.append(gamma, delta)

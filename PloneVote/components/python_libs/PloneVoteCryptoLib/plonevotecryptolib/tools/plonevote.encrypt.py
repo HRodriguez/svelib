@@ -29,10 +29,12 @@
 # ============================================================================
 
 import sys
+import os.path
 import getopt
 
 from plonevotecryptolib.PublicKey import PublicKey
 from plonevotecryptolib.utilities.BitStream import BitStream
+from plonevotecryptolib.utilities.TaskMonitor import TaskMonitor
 from plonevotecryptolib.PVCExceptions import *
 
 def print_usage():
@@ -89,8 +91,27 @@ def run_tool(key_file, in_file, out_file):
 	
 	in_f.close()
 	
+	# Define callbacks for the TaskMonitor for monitoring the encryption process
+	if(len(in_file) <= 50):
+		short_in_filename = in_file
+	else:
+		short_in_filename = os.path.split(in_file)
+		if(len(short_in_filename) > 50):
+			# Do ellipsis shortening
+			short_in_filename = short_in_filename[0,20] + "..." + \
+								short_in_filename[-20,-1]
+	
+	def cb_task_percent_progress(task):
+		print "  %.2f%% of %s encrypted..." % \
+				(task.get_percent_completed(), short_in_filename)
+	
+	# Create new TaskMonitor and register the callbacks
+	taskmon = TaskMonitor()
+	taskmon.add_on_progress_percent_callback(cb_task_percent_progress, \
+											 percent_span = 5)
+	
 	# Encrypt bitstream
-	ciphertext = public_key.encrypt_bitstream(bitstream)
+	ciphertext = public_key.encrypt_bitstream(bitstream, task_monitor = taskmon)
 	
 	# Save the ciphertext to the output file
 	print "Encrypting..."

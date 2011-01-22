@@ -29,11 +29,13 @@
 # ============================================================================
 
 import sys
+import os.path
 import getopt
 
 from plonevotecryptolib.PrivateKey import PrivateKey
 from plonevotecryptolib.Ciphertext import Ciphertext
 from plonevotecryptolib.utilities.BitStream import BitStream
+from plonevotecryptolib.utilities.TaskMonitor import TaskMonitor
 from plonevotecryptolib.PVCExceptions import *
 
 def print_usage():
@@ -77,10 +79,29 @@ def run_tool(key_file, in_file, out_file):
 		print "Invalid PloneVote encrypted file (%s): %s" % (key_file, e.msg)
 		sys.exit(2)
 	
+	# Define callbacks for the TaskMonitor for monitoring the decryption process
+	if(len(in_file) <= 50):
+		short_in_filename = in_file
+	else:
+		short_in_filename = os.path.split(in_file)
+		if(len(short_in_filename) > 50):
+			# Do ellipsis shortening
+			short_in_filename = short_in_filename[0,20] + "..." + \
+								short_in_filename[-20,-1]
+	
+	def cb_task_percent_progress(task):
+		print "  %.2f%% of %s decrypted..." % \
+				(task.get_percent_completed(), short_in_filename)
+	
+	# Create new TaskMonitor and register the callbacks
+	taskmon = TaskMonitor()
+	taskmon.add_on_progress_percent_callback(cb_task_percent_progress, \
+											 percent_span = 5)
+	
 	# Decrypt to bitstream
 	print "Decrypting..."	
 	try:
-		bitstream = private_key.decrypt_to_bitstream(ciphertext)
+		bitstream = private_key.decrypt_to_bitstream(ciphertext, task_monitor = taskmon)
 	except IncompatibleCiphertextError, e:
 		print "Incompatible private key and ciphertext error: %s" % s.msg
 	
