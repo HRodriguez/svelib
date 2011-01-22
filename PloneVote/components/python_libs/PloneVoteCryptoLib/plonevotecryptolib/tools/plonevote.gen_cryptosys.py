@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-#  plonevote.get_cryptosys.py : A tool to generate new cryptosystem instances.
+#  plonevote.gen_cryptosys.py : A tool to generate new cryptosystem instances.
 #
 #  Part of the PloneVote cryptographic library (PloneVoteCryptoLib)
 #
@@ -42,9 +42,9 @@ def print_usage():
 	"""
 	print """USAGE:
 		  
-		  plonevote.get_cryptosys.py --nbits=N --name="..." --description="..." filename
+		  plonevote.gen_cryptosys.py --nbits=N --name="..." --description="..." filename
 		  
-		  plonevote.get_cryptosys.py (--help|-h)
+		  plonevote.gen_cryptosys.py (--help|-h)
 		  
 		  Long options (--X) may be given in any order, but the filename must always be the last argument.
 		  	
@@ -61,7 +61,7 @@ def print_usage():
 	
 def run_tool(nbits, filename, name, description):
 	"""
-	Runs the plonevote.get_cryptosys tool and generates a new cryptosystem.
+	Runs the plonevote.gen_cryptosys tool and generates a new cryptosystem.
 	"""
 	# Define callbacks for the TaskMonitor for progress monitoring
 	def cb_task_start(task):

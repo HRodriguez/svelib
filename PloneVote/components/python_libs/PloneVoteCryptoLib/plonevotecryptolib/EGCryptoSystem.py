@@ -800,6 +800,11 @@ class EGStub:
 	def from_file(cls, filename):
 		"""
 		Loads an instance of EGStub from the given file.
+		
+		Throws:
+			InvalidPloneVoteCryptoFileError -- If the file is not a valid 
+											   PloneVoteCryptoLib stored 
+											   cryptosystem file.
 		"""
 		doc = xml.dom.minidom.parse(filename)
 		
