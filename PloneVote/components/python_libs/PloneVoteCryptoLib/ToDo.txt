@@ -7,7 +7,7 @@
 	19 Ene:
 		+ save/load keys
 		+ armored encrypted text format
-		- plonevote.gen_keys
+		+ plonevote.gen_keys
 		- plonevote.encrypt
 		- plonevote.decrypt
 		- milestones Sergio
