@@ -78,7 +78,7 @@ __all__ = ["EGCryptoSystem", "EGStub", "EGCSUnconstructedStateError"]
 # ============================================================================
 # Helper functions:
 # ============================================================================
-def _is_safe_prime(p):
+def _is_safe_prime(p, probability=params.FALSE_PRIME_PROBABILITY):
 		"""
 		Test if the number p is a safe prime.
 		
@@ -86,6 +86,11 @@ def _is_safe_prime(p):
 		
 		Arguments:
 			p::long	-- Any integer.
+			probability::int	-- The desired maximum probability that p 
+								   or q may be composite numbers and still be 
+								   declared prime by our (probabilistic) 
+								   primality test. (Actual probability is 
+								   lower, this is just a maximum provable bound)
 		
 		Returns:
 			True	if p is a safe prime
@@ -97,12 +102,13 @@ def _is_safe_prime(p):
 		
 		q = (p - 1)/2
 		
-		prob = params.FALSE_PRIME_PROBABILITY
-		return (Crypto.Util.number.isPrime(q, false_positive_prob=prob) and 	# q first to shortcut the most common False case
-				Crypto.Util.number.isPrime(p, false_positive_prob=prob))
+		# q first to shortcut the most common False case
+		return (Crypto.Util.number.isPrime(q, false_positive_prob=probability) 
+				and
+				Crypto.Util.number.isPrime(p, false_positive_prob=probability))
 				
 
-def _generate_safe_prime(nbits, task_monitor=None):
+def _generate_safe_prime(nbits, probability=params.FALSE_PRIME_PROBABILITY, task_monitor=None):
 		"""
 		Generate a safe prime of size nbits.
 		
@@ -118,10 +124,15 @@ def _generate_safe_prime(nbits, task_monitor=None):
 						   This private method assumes that the
 						   nbits parameter has already been checked to satisfy 
 						   all necessary security conditions.
+			probability::int	-- The desired maximum probability that p 
+								   or q may be composite numbers and still be 
+								   declared prime by our (probabilistic) 
+								   primality test. (Actual probability is 
+								   lower, this is just a maximum provable bound)
+			task_monitor::TaskMonitor	-- A task monitor for the process.
 		
 		Returns:
 			p::long		-- A safe prime.
-			task_monitor::TaskMonitor	-- A task monitor for the process.
 		"""
 		found = False
 		
@@ -133,14 +144,12 @@ def _generate_safe_prime(nbits, task_monitor=None):
 			q = Crypto.Util.number.getPrime(nbits - 1)
 			p = 2*q + 1
 			
-			if(not Crypto.Util.number.isPrime(p, 
-						false_positive_prob=params.FALSE_PRIME_PROBABILITY)):
+			if(not Crypto.Util.number.isPrime(p, probability)):
 				continue
 				
 			# Are we sure about q, though? (pycrypto may allow a higher 
 			# probability of q being composite than what we might like)
-			if(not Crypto.Util.number.isPrime(q, 
-						false_positive_prob=params.FALSE_PRIME_PROBABILITY)):
+			if(not Crypto.Util.number.isPrime(q, probability)):
 				continue
 			
 			found = True
@@ -398,10 +407,9 @@ class EGCryptoSystem:
 		but can be override by setting CUSTOM_DEFAULT_KEY_SIZE).
 		
 		Arguments:
-			nbits::int	-- (optional) Bit size of the prime to use for the 
-						   ElGamal scheme. Higher is safer but slower.
+			nbits::int	-- Bit size of the prime to use for the ElGamal scheme.
+						   Higher is safer but slower.
 						   Must be a multiple of eight (ie. expressible in bytes).
-						   Defaults to params.DEFAULT_KEY_SIZE.
 			task_monitor::TaskMonitor	-- A Task Monitor object to monitor the 
 										   cryptosystem generation process.
 						   
@@ -420,7 +428,8 @@ class EGCryptoSystem:
 		if(task_monitor != None):
 			prime_task = task_monitor.new_subtask("Generate safe prime", 
 									percent_of_parent = 80.0)
-			cryptosystem._prime = _generate_safe_prime(cryptosystem._nbits, prime_task)
+			cryptosystem._prime = _generate_safe_prime(cryptosystem._nbits, 
+													   task_monitor=prime_task)
 		else:
 			cryptosystem._prime = _generate_safe_prime(cryptosystem._nbits)
 			
@@ -481,7 +490,8 @@ class EGCryptoSystem:
 					% (prime, nbits))
 		
 		# Verify that prime is a safe prime
-		if(_is_safe_prime(prime)):
+		prob = params.FALSE_PRIME_PROBABILITY_ON_VERIFICATION
+		if(_is_safe_prime(prime, prob)):
 			cryptosystem._prime = prime
 		else:
 			raise NotASafePrimeError(prime,

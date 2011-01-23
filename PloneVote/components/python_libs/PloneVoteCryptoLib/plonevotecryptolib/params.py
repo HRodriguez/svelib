@@ -82,10 +82,8 @@ CUSTOM_MINIMUM_KEY_SIZE = None
 
 # The probability that we select a composite number instead of a prime when 
 # setting up the cryptosystem.
-# (Higher probability than 1e^-6 has no effect)
 # If None, false prime probability will be selected based on SECURITY_LEVEL
 CUSTOM_FALSE_PRIME_PROBABILITY = None
-
 
 
 # ===================================================================
@@ -139,6 +137,20 @@ else:
 						SECURITY_LEVELS_ENUM.HIGH : 2**(-256),
 						SECURITY_LEVELS_ENUM.HIGHEST : 2**(-256),
 						SECURITY_LEVELS_ENUM.OVERKILL : 2**(-512),
+						}[SECURITY_LEVEL]
+
+# Used when a pre-generated cryptosystem is loaded
+# Much lower than FALSE_PRIME_PROBABILITY for performance reasons, but still 
+# high enough to detect most accidental corruptions or surepticious alterations 
+# of cryptosystem or key files.
+FALSE_PRIME_PROBABILITY_ON_VERIFICATION = {
+						SECURITY_LEVELS_ENUM.INSECURE : 1, #No verification
+						SECURITY_LEVELS_ENUM.LOWEST : 1e-3,
+						SECURITY_LEVELS_ENUM.LOW : 1e-3,
+						SECURITY_LEVELS_ENUM.NORMAL : 1e-4,
+						SECURITY_LEVELS_ENUM.HIGH : 1e-4,
+						SECURITY_LEVELS_ENUM.HIGHEST : 1e-6,
+						SECURITY_LEVELS_ENUM.OVERKILL : 2**(-256),
 						}[SECURITY_LEVEL]
 			
 

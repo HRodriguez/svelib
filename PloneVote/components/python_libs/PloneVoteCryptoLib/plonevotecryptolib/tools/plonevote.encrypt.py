@@ -111,10 +111,10 @@ def run_tool(key_file, in_file, out_file):
 											 percent_span = 5)
 	
 	# Encrypt bitstream
+	print "Encrypting..."
 	ciphertext = public_key.encrypt_bitstream(bitstream, task_monitor = taskmon)
 	
 	# Save the ciphertext to the output file
-	print "Encrypting..."
 	try:
 		ciphertext.to_file(out_file)
 	except Exception, e:
