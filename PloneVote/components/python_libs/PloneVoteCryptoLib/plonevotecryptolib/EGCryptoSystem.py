@@ -270,7 +270,7 @@ class EGCSUnconstructedStateError(Exception):
 	load(nbits, prime, generator).
 	"""
     
-    def __str__(self):
+	def __str__(self):
 		return self.msg
 
 	def __init__(self):

@@ -55,7 +55,7 @@ class ThresholdEncryptionSetUpStateError(Exception):
 		  trustees' commitments.				
 	"""
     
-    def __str__(self):
+	def __str__(self):
 		return self.msg
 
 	def __init__(self, msg):
@@ -117,7 +117,7 @@ class ThresholdEncryptionSetUp:
 							   (trustees are indexed from 1 to num_trustees)
 			public_key::PublicKey	-- The trustee's public key.
 		"""
-		if(not (1 <= truste <= self._num_trustees)):
+		if(not (1 <= trustee <= self._num_trustees)):
 			raise ValueError("Invalid trustee. The threshold scheme trustees " \
 							"must be indexed from 1 to %d" % self._num_trustees)
 		

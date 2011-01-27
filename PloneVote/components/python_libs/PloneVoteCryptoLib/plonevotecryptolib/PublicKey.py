@@ -219,10 +219,10 @@ class PublicKey:
 			
 			# Compute gamma and delta
 			gamma = pow(generator, k, prime)
-			if(encrypt_task_mon != None): encrypt_task_mon.tick()
+			if(task_monitor != None): encrypt_task_mon.tick()
 			
 			delta = (block * pow(self._key, k, prime)) % prime
-			if(encrypt_task_mon != None): encrypt_task_mon.tick()
+			if(task_monitor != None): encrypt_task_mon.tick()
 			
 			# Add this encrypted data portion to the ciphertext object
 			ciphertext.append(gamma, delta)
