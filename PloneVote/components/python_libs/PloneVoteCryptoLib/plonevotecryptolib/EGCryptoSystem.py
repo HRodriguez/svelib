@@ -269,6 +269,9 @@ class EGCSUnconstructedStateError(Exception):
 	must be created through one of its factory class methods, such as new() or
 	load(nbits, prime, generator).
 	"""
+    
+    def __str__(self):
+		return self.msg
 
 	def __init__(self):
 		"""

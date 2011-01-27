@@ -20,6 +20,9 @@
 		- mixnets
 		- proof of shuffling
 		- verifiable decryption
+		
+POSSIBLE WEAKNESS:
+	- Encryption pads the last block with 0's, should be changed to random data
 
 Early optimization is the O(sqrt(n)*lg^2(n)) of all evil...
 
