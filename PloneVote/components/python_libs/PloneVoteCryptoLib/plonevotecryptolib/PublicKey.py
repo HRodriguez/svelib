@@ -208,10 +208,15 @@ class PublicKey:
 				plaintext_bits_left -= block_size
 			else:
 				block = formated_bitstream.get_num(plaintext_bits_left)
-				# Encrypt as if the stream was filled with 0's past its end
-				# this avoids introducing a 0's gap during decryption to 
+				# Encrypt as if the stream was filled with random data past its 
+				# end, this avoids introducing a 0's gap during decryption to 
 				# bitstream
-				block = block << (block_size - plaintext_bits_left)
+				displacement = block_size - plaintext_bits_left
+				block = block << displacement
+				padding = random.randint(0, 2**displacement - 1)
+				assert (padding / 2**displacement == 0), \
+							"padding should be at most displacement bits long"
+				block = block | padding
 				plaintext_bits_left = 0
 			
 			# Select a random integer k, 1 <= k <= p − 2
