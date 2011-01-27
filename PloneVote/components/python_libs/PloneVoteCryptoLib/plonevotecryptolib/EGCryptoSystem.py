@@ -380,6 +380,21 @@ class EGCryptoSystem:
 				
 		return nbits
 	
+	def __eq__(self, other):
+		"""
+		Equality (==) operator.
+		"""
+		return (type(self) == type(other) and \
+				self._nbits == other._nbits and \
+				self._prime == other._prime and \
+				self._generator == other._generator)
+				
+	def __ne__(self, other):
+		"""
+		Inequality (!=) operator.
+		"""
+		return not self.__eq__(other)
+	
 	def __init__(self):
 		"""
 		DO NOT USE THIS CONSTRUCTOR

@@ -68,6 +68,23 @@ class ThresholdEncryptionSetUpStateError(Exception):
 		"""
 		self.msg = msg
 
+class IncompatibleCommitmentError(Exception):
+	"""
+	Raised when ThresholdEncryptionSetUp.add_trustee_commitment is given a 
+	ThresholdEncryptionCommitment that is not compatible with the current 
+	ThresholdEncryptionSetUp instance. 
+	(ie. has a different number of trustees)
+	"""
+    
+	def __str__(self):
+		return self.msg
+
+	def __init__(self, msg):
+		"""
+		Create a new IncompatibleCommitmentError exception.
+		"""
+		self.msg = msg
+
 
 class ThresholdEncryptionSetUp:
 	"""
@@ -215,7 +232,23 @@ class ThresholdEncryptionSetUp:
 		
 		# Check that global parameters of the commitment match those of the 
 		# current ThresholdEncryptionSetUp instance.
-		
+		if(self.cryptosystem != commitment.cryptosystem):
+			raise IncompatibleCommitmentError("The given commitment is not " \
+							"compatible with the current " \
+							"ThresholdEncryptionSetUp instance: " \
+							"Different cryptosystems used.")
+							
+		if(self._num_trustees != commitment.num_trustees):
+			raise IncompatibleCommitmentError("The given commitment is not " \
+							"compatible with the current " \
+							"ThresholdEncryptionSetUp instance: " \
+							"Different number of trustees.")
+							
+		if(self._threshold != commitment.threshold):
+			raise IncompatibleCommitmentError("The given commitment is not " \
+							"compatible with the current " \
+							"ThresholdEncryptionSetUp instance: " \
+							"Different threshold value.")
 		
 		# The trustee indexes go from 1 to n, the commitment list indexes go 
 		# from 0 to (n-1)					
