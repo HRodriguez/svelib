@@ -42,6 +42,7 @@ from Crypto.Random.random import StrongRandom
 import Crypto.Hash.SHA256	# sha256 is not available in python 2.4 standard lib
 
 from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem, EGStub
+from plonevotecryptolib.PVCExceptions import InvalidPloneVoteCryptoFileError
 from plonevotecryptolib.Ciphertext import Ciphertext
 from plonevotecryptolib.utilities.BitStream import BitStream
 
@@ -257,7 +258,7 @@ class PublicKey:
 		"""
 		doc = xml.dom.minidom.Document()
 		root_element = doc.createElement("PloneVotePublicKey")
-		# This is a single public key, as opposed to a composite one
+		# This is a single public key, as opposed to a threshold one
 		root_element.setAttribute("type", "single")
 		doc.appendChild(root_element)
 		
@@ -282,41 +283,27 @@ class PublicKey:
 		file_object = open(filename, "w")
 		file_object.write(doc.toprettyxml())
 		file_object.close()
-		
-	@classmethod
-	def from_file(cls, filename):
+	
+	@classmethod	
+	def _parse_root_element(cls, root_element):
 		"""
-		Loads a public key from file.
+		Parses the contents of the <PloneVoteCryptoLib> node of the public 
+		key's XML format.
+		
+		Arguments:
+			root_element::xml.dom.minidom.None -- The <PloneVoteCryptoLib> node.
+		
+		Returns:
+			(cryptosystem,key)::(EGCryptoSystem,long) --
+				The parsed and verified cryptosystem and inner public key 
+				contained within the <PloneVoteCryptoLib> node.
 		"""
-		doc = xml.dom.minidom.parse(filename)
-		
-		# Check root element
-		if(len(doc.childNodes) != 1 or 
-			doc.childNodes[0].nodeType != doc.childNodes[0].ELEMENT_NODE or
-			doc.childNodes[0].localName != "PloneVotePublicKey"):
-			
-			raise InvalidPloneVoteCryptoFileError(filename, 
-				"A PloneVoteCryptoLib stored public key file must be an " \
-				"XML file with PloneVotePublicKey as its root element.")	
-		
-		root_element = doc.childNodes[0]
-		
-		# Verify that we are dealing with a single public key and not a 
-		# composite one.
-		type_attribute = root_element.getAttribute("type")
-		if(type_attribute == "single"):
-			pass		# this is the expected value, lets continue parsing
-		elif(type_attribute == "composite"):
-			# We load this file as a composite key instead!
-			raise Exception("Not implemented: support for composite keys!")
-		else:
-			raise InvalidPloneVoteCryptoFileError(filename, 
-				"Unknown public key type \"%d\". Valid public key types are " \
-				"\"single\" and \"composite\".")
-		
-		cs_scheme_element = key_element = None
+		# NOTE: This method is separated from from_file() so that 
+		# ThesholdPublicKey may call it as well, without repeating code.
 		
 		# Retrieve individual "tier 2" nodes
+		cs_scheme_element = key_element = None
+		
 		for node in root_element.childNodes:
 			if node.nodeType == node.ELEMENT_NODE:
 				if node.localName == "PublicKey":
@@ -351,7 +338,12 @@ class PublicKey:
 				" inside it.")
 		
 		key_str = key_element.childNodes[0].data.strip()	# trim spaces
-		key = int(key_str, 16)
+		try:
+			key = int(key_str, 16)
+		except ValueError:
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"The value of the public key given in the file is invalid. " \
+				"(could the file be corrupt?).")
 		
 		if(not (0 <= key < prime)):
 			raise InvalidPloneVoteCryptoFileError(filename, 
@@ -360,6 +352,42 @@ class PublicKey:
 		
 		# Construct the cryptosystem object
 		cryptosystem = EGCryptoSystem.load(nbits, prime, generator)
+		
+		return (cryptosystem, key)
+		
+	@classmethod
+	def from_file(cls, filename):
+		"""
+		Loads a public key from file.
+		"""
+		doc = xml.dom.minidom.parse(filename)
+		
+		# Check root element
+		if(len(doc.childNodes) != 1 or 
+			doc.childNodes[0].nodeType != doc.childNodes[0].ELEMENT_NODE or
+			doc.childNodes[0].localName != "PloneVotePublicKey"):
+			
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"A PloneVoteCryptoLib stored public key file must be an " \
+				"XML file with PloneVotePublicKey as its root element.")	
+		
+		root_element = doc.childNodes[0]
+		
+		# Verify that we are dealing with a single public key and not a 
+		# threshold one.
+		type_attribute = root_element.getAttribute("type")
+		if(type_attribute == "single"):
+			pass		# this is the expected value, lets continue parsing
+		elif(type_attribute == "threshold"):
+			# We load this file as a threshold key instead!
+			from plonevotecryptolib.Threshold.ThresholdPublicKey import ThresholdPublicKey
+			return ThresholdPublicKey.from_file(filename)
+		else:
+			raise InvalidPloneVoteCryptoFileError(filename, 
+				"Unknown public key type \"%s\". Valid public key types are " \
+				"\"single\" and \"threshold\"." % type_attribute)
+		
+		(cryptosystem, key) = PublicKey._parse_root_element(root_element)
 		
 		# Construct and return the PublicKey object
 		return cls(cryptosystem, key)
