@@ -291,7 +291,7 @@ class PublicKey:
 		key's XML format.
 		
 		Arguments:
-			root_element::xml.dom.minidom.None -- The <PloneVoteCryptoLib> node.
+			root_element::xml.dom.minidom.Node -- The <PloneVoteCryptoLib> node.
 		
 		Returns:
 			(cryptosystem,key)::(EGCryptoSystem,long) --
