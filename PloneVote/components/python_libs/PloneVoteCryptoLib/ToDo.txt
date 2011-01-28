@@ -8,21 +8,20 @@
 		+ save/load keys
 		+ armored encrypted text format
 		+ plonevote.gen_keys
-		- plonevote.encrypt
-		- plonevote.decrypt
+		+ plonevote.encrypt
+		+ plonevote.decrypt
 		- milestones Sergio
 	21 Ene:
 		- threshold encryption
-	22 Ene:
-		- Begin (module) documentation/test work
+		
+	- Threshold private key generation
+	- Threshold decryption
+	- Threshold verifiable decryption
 		
 	Next week:
 		- mixnets
 		- proof of shuffling
 		- verifiable decryption
-		
-POSSIBLE WEAKNESS:
-	- Encryption pads the last block with 0's, should be changed to random data
 
 Early optimization is the O(sqrt(n)*lg^2(n)) of all evil...
 

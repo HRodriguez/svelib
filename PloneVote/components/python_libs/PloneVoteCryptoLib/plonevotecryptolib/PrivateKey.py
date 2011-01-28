@@ -39,6 +39,7 @@ import xml.dom.minidom
 from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem, EGStub
 from plonevotecryptolib.PublicKey import PublicKey
 from plonevotecryptolib.Ciphertext import Ciphertext
+from plonevotecryptolib.PVCExceptions import IncompatibleCiphertextError
 from plonevotecryptolib.utilities.BitStream import BitStream
 
 class PrivateKey:
@@ -131,7 +132,7 @@ class PrivateKey:
 			m = (pow(gamma, prime - 1 - key, prime) * delta) % prime
 			bitstream.put_num(m, block_size)
 			
-			if(decrypt_task_mon != None): decrypt_task_mon.tick()
+			if(task_monitor != None): decrypt_task_mon.tick()
 			
 		return bitstream
 			

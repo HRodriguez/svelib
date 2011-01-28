@@ -47,6 +47,28 @@ class ParameterError(Exception):
     	"""
         self.msg = msg
 
+class ElectionSecurityError(Exception):
+    """
+    Election security error exception.
+    
+    This exception is used as the base for exceptions within PloneVoteCryptoLib 
+    which would seem to indicate a security problem, such as an intentional 
+    attack, a corrupt proof used for verification (of decryption, of threshold 
+    set-up, of shuffling, etc). Applications using PloneVoteCryptoLib should be 
+    careful when handling ElectionSecurityErrors and not allow the election 
+    process to continue until the error has been resolved.
+
+    Attributes:
+        msg::string	-- explanation of the error
+    """
+    
+    def __str__(self):
+		return self.msg
+
+    def __init__(self, msg):
+    	"""Create a new ElectionSecurityError exception
+    	"""
+        self.msg = msg
 
 class KeyLengthTooLowError(ParameterError):
     """

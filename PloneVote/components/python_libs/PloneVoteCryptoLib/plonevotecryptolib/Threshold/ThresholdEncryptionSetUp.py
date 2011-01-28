@@ -44,6 +44,9 @@ import Crypto.Hash.SHA256
 from plonevotecryptolib.Threshold.Polynomial import CoefficientsPolynomial
 from plonevotecryptolib.Threshold.ThresholdEncryptionCommitment import ThresholdEncryptionCommitment
 from plonevotecryptolib.Threshold.ThresholdPublicKey import ThresholdPublicKey
+from plonevotecryptolib.PVCExceptions import InvalidPloneVoteCryptoFileError
+from plonevotecryptolib.PVCExceptions import ElectionSecurityError
+from plonevotecryptolib.PVCExceptions import IncompatibleCiphertextError
 from plonevotecryptolib.utilities.BitStream import BitStream
 
 class ThresholdEncryptionSetUpStateError(Exception):
@@ -85,6 +88,32 @@ class IncompatibleCommitmentError(Exception):
 		Create a new IncompatibleCommitmentError exception.
 		"""
 		self.msg = msg
+
+class InvalidCommitmentError(ElectionSecurityError):
+	"""
+	Raised when a ThresholdEncryptionCommitment is detected to be invalid.
+	
+	For example, when it is found that a partial private key given in the 
+	commitment is not consistent with its public coefficients.
+	
+	This is an election security error. If raised, the election process may 
+	only safely continue if the detected invalid commitment is replaced with a 
+	correct one and threshold public and private keys are generated again from 
+	scratch.
+	
+	Attributes:
+		trustee::int	-- The number of the trustee to which the invalid 
+						   commitment is associated.
+		commitment::ThresholdEncryptionCommitment	-- The invalid commitment.
+	"""
+
+	def __init__(self, trustee, commitment, msg):
+		"""
+		Create a new ThresholdEncryptionSetUpStateError exception.
+		"""
+		ElectionSecurityError.__init__(self, msg)
+		self.trustee = trustee
+		self.commitment = commitment
 
 
 class ThresholdEncryptionSetUp:
@@ -128,6 +157,12 @@ class ThresholdEncryptionSetUp:
 		
 		This fingerprint is calculated as a hash of all public coefficients and 
 		encrypted partial private keys from all of the trustees' commitments.
+		
+		Returns:
+			fingerprint::string	-- fingerprint as a sha256 hexdigest
+		
+		Throws:
+			ThresholdEncryptionSetUpStateError -- If commitments are not loaded.
 		"""
 		fingerprint = Crypto.Hash.SHA256.new()
 		
@@ -262,6 +297,9 @@ class ThresholdEncryptionSetUp:
 		
 		Returns:
 			commitment::ThresholdEncryptionCommitment
+		
+		Throws:
+			ThresholdEncryptionSetUpStateError -- If public keys are not loaded.
 		"""
 		# 0. Verify that all public keys are available for 1-to-1 encryption.
 		for trustee in range(1, self._num_trustees - 1):
@@ -269,7 +307,7 @@ class ThresholdEncryptionSetUp:
 			# to (n-1)
 			pk = self._trustees_simple_public_keys[trustee - 1]
 			if(pk == None):
-				raise ThresholdEncryptionSetUpStateError( \
+				raise ThresholdEncryptionSetUpStateError(
 					"generate_commitment() must only be called after all the " \
 					"trustees' public keys have been registered with this " \
 					"ThresholdEncryptionSetUp instance. Missing public key " \
@@ -326,6 +364,9 @@ class ThresholdEncryptionSetUp:
 		Returns:
 			public_key::ThresholdPublicKey	-- The public key for the threshold 
 											   scheme.
+		
+		Throws:
+			ThresholdEncryptionSetUpStateError -- If commitments are not loaded.
 		"""
 		# The public key for a threshold encryption scheme is the value 
 		# generator^P(0) for P the shared sum of all of the polynomials
@@ -339,7 +380,7 @@ class ThresholdEncryptionSetUp:
 		
 		for commitment in self._trustees_commitments:
 			if(commitment == None):
-				raise ThresholdEncryptionSetUpStateError( \
+				raise ThresholdEncryptionSetUpStateError(
 					"generate_public_key() must only be called after all the " \
 					"trustees' commitments have been registered with this " \
 					"ThresholdEncryptionSetUp instance. Missing at least one " \
@@ -349,3 +390,115 @@ class ThresholdEncryptionSetUp:
 		
 		return ThresholdPublicKey(self.cryptosystem, self._num_trustees, 
 								  self._threshold, key)
+	
+	def generate_private_key(self, current_trustee, simple_private_key):
+		"""
+		Construct the threshold private key for the scheme.
+		
+		This  method requires all trustees' commitments to be loaded into the 
+		current instance. The partial private key given in each commitment for 
+		the current trustee is verified to be consistent with the public 
+		coefficients given in the commitment.
+		
+		This trustee's threshold private key is generated as P(j)= SUM(P_{i}(j) 
+		for all the P_{i} polynomials of all trustees.
+		
+		Arguments:
+			current_trustee::int	-- The number of the trustee who wishes to 
+									   generate their threshold private key.
+			simple_private_key::PrivateKey	--The simple (1-to-1, non threshold)
+										private key of the trustee generating 
+										their threshold private key.
+										
+		Returns:
+			threshold_private_key::ThresholdPrivateKey --
+				current_trustee's threshold private key.
+		
+		Throws:
+			ThresholdEncryptionSetUpStateError -- If commitments are not loaded.
+			InvalidCommitmentError 	-- If a commitment gives an inconsistent 
+									   partial private key.
+		"""
+		
+		partial_private_keys = []
+		prime = self.cryptosystem.get_prime()
+		generator = self.cryptosystem.get_generator()
+		
+		# For each commitment:
+		for trustee in range(1, self._num_trustees + 1):
+			commitment = self._trustees_commitments[trustee - 1]
+			
+			# We check that the commitment is loaded.
+			if(commitment == None):
+				raise ThresholdEncryptionSetUpStateError(
+					"generate_private_key() must only be called after all " \
+					"the trustees' commitments have been registered with " \
+					"this ThresholdEncryptionSetUp instance. Missing at " \
+					"least one commitment.")
+		
+			# We decrypt the partial private key intended for the current 
+			# trustee.
+			
+			# 	encrypted_partial_private_keys is indexed from 0 to n-1, 
+			# 	trustees are indexed from 1 to n.
+			ciphertext = \
+				commitment.encrypted_partial_private_keys[current_trustee - 1]
+			
+			try:
+				bitstream = simple_private_key.decrypt_to_bitstream(ciphertext)
+			except IncompatibleCiphertextError:
+				raise InvalidCommitmentError(trustee, commitment,
+						"SECURITY ERROR: " \
+						"Invalid commitment. The encrypted partial private " \
+						"key addressed to the current trustee is encrypted" \
+						"with a key that is incompatible with the private " \
+						"key given. This could mean either a corrupt " \
+						"commitment or an incorrect 1-to-1 (non threshold) " \
+						"private key passed as an argument to "\
+						"generate_private_key().")
+				
+			bitstream.seek(0)
+			size = bitstream.get_num(64)
+			pp_key = bitstream.get_num(size)
+		
+			# We verify the key against the public coefficients of the 
+			# commitment:
+			#  g^(P_{j}(i)) must be the same as PHI((g^c_{jk})^(i^k)) \forall k
+			#  where i is the current trustee, j the trustee that generates the 
+			#  commitment, g^c_{jk} the public coefficients and P_{j}(i) the 
+			#  partial private key.
+			#  proof: (LaTeX)
+			#  $g^{P_{j}(i)}=g^{\sum_{k}c_{jk}(i^{k})}=
+			#	\prod_{k}\left(g^{c_{jk}(i^{k})}\right)=
+			#	\prod_{k}\left[\left(g^{c_{jk}}\right)^{(i^{k})}\right]$
+			
+			left_hand_side = pow(generator, pp_key, prime)
+			right_hand_side = 0
+			
+			# We need the index k from 0 to len(coeffs)
+			for k in range(0, len(commitment.public_coefficients)):
+				p_coeff = commitment.public_coefficients[k]
+				right_hand_side += pow(p_coeff, current_trustee**k, prime)
+				right_hand_side = right_hand_side % prime
+			
+			if(left_hand_side != right_hand_side):
+				raise InvalidCommitmentError(trustee, commitment,
+						"SECURITY ERROR: " \
+						"Invalid commitment. The partial private key " \
+						"addressed to the current trustee is inconsistent " \
+						"with the commitment's public coefficients. " \
+						"This indicates either corruption or deliberate " \
+						"tampering of the commitment, either by the trustee " \
+						"generating it or in transit.")
+			
+			# We record the partial private key
+			partial_private_keys.append(pp_key)
+		
+		# We add all partial private keys to obtain this trustee's private key.
+		key = 0
+		for pp_key in partial_private_keys:
+			key = (key + pp_key) % prime
+		
+		# We construct and return the threshold private key
+		return ThresholdPrivateKey(self.cryptosystem, self._num_trustees, 
+								   self._threshold, key)
