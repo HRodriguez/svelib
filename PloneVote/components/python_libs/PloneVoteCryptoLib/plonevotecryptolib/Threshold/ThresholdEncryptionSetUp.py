@@ -44,6 +44,7 @@ import Crypto.Hash.SHA256
 from plonevotecryptolib.Threshold.Polynomial import CoefficientsPolynomial
 from plonevotecryptolib.Threshold.ThresholdEncryptionCommitment import ThresholdEncryptionCommitment
 from plonevotecryptolib.Threshold.ThresholdPublicKey import ThresholdPublicKey
+from plonevotecryptolib.Threshold.ThresholdPrivateKey import ThresholdPrivateKey
 from plonevotecryptolib.PVCExceptions import InvalidPloneVoteCryptoFileError
 from plonevotecryptolib.PVCExceptions import ElectionSecurityError
 from plonevotecryptolib.PVCExceptions import IncompatibleCiphertextError
@@ -320,8 +321,16 @@ class ThresholdEncryptionSetUp:
 		nbits = self.cryptosystem.get_nbits()
 		prime = self.cryptosystem.get_prime()
 		generator = self.cryptosystem.get_generator()
+		
+		# All calculations inside the polynomial are performed modulus prime - 1
+		# This is because the values of the polynomial coefficients or its value
+		# at a certain point are always used as the exponent of elements in 
+		# Z_{p}^{*} (most notably the generator), and we know: 
+		#  a = b mod (p - 1) => g^a = g^b mod p
+		#  (because g^{a-b} = g^{x(p-1)} = (g^x)^{p-1} = 1 mod p)
+		
 		polynomial = \
-			CoefficientsPolynomial.new_random_polynomial(prime, degree)
+			CoefficientsPolynomial.new_random_polynomial(prime - 1, degree)
 		
 		# 2. Generate the public "coefficients" (actually g^coefficient for 
 		# each coefficient of the polynomial).
@@ -336,7 +345,7 @@ class ThresholdEncryptionSetUp:
 		# IMPORTANT: We encrypt each partial private key so that only its 
 		# intended recipient may read it.
 		enc_keys = []
-		for trustee in range(1, self._num_trustees - 1):
+		for trustee in range(1, self._num_trustees + 1):
 			pp_key = polynomial(trustee)	# P(j)
 			trustee_pk = self._trustees_simple_public_keys[trustee - 1]
 			
@@ -473,12 +482,12 @@ class ThresholdEncryptionSetUp:
 			#	\prod_{k}\left[\left(g^{c_{jk}}\right)^{(i^{k})}\right]$
 			
 			left_hand_side = pow(generator, pp_key, prime)
-			right_hand_side = 0
+			right_hand_side = 1
 			
 			# We need the index k from 0 to len(coeffs)
 			for k in range(0, len(commitment.public_coefficients)):
 				p_coeff = commitment.public_coefficients[k]
-				right_hand_side += pow(p_coeff, current_trustee**k, prime)
+				right_hand_side *= pow(p_coeff, current_trustee**k, prime)
 				right_hand_side = right_hand_side % prime
 			
 			if(left_hand_side != right_hand_side):
