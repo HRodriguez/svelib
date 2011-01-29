@@ -42,15 +42,15 @@ class ThresholdKeyPair:
 	ThresholdEncryptionSetUp class
 	
 	Attributes:
-		public_key::PublicKey	-- The threshold public key
-		private_key::PrivateKey	-- The threshold private key	
+		private_key::PrivateKey	-- The threshold private key
+		public_key::PublicKey	-- The threshold public key	
 	"""
 	
-	def __init__(self, public_key, private_key):
+	def __init__(self, private_key, public_key):
 		"""
 		Constructs a new ThresholdKeyPair "tuple"
 		"""
-		self.public_key = public_key
 		self.private_key = private_key
+		self.public_key = public_key
 		
 		

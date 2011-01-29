@@ -45,9 +45,12 @@ from plonevotecryptolib.Threshold.Polynomial import CoefficientsPolynomial
 from plonevotecryptolib.Threshold.ThresholdEncryptionCommitment import ThresholdEncryptionCommitment
 from plonevotecryptolib.Threshold.ThresholdPublicKey import ThresholdPublicKey
 from plonevotecryptolib.Threshold.ThresholdPrivateKey import ThresholdPrivateKey
+from plonevotecryptolib.Threshold.ThresholdKeyPair import ThresholdKeyPair
+
 from plonevotecryptolib.PVCExceptions import InvalidPloneVoteCryptoFileError
 from plonevotecryptolib.PVCExceptions import ElectionSecurityError
 from plonevotecryptolib.PVCExceptions import IncompatibleCiphertextError
+
 from plonevotecryptolib.utilities.BitStream import BitStream
 
 class ThresholdEncryptionSetUpStateError(Exception):
@@ -399,10 +402,10 @@ class ThresholdEncryptionSetUp:
 		
 		return ThresholdPublicKey(self.cryptosystem, self._num_trustees, 
 								  self._threshold, key)
-	
-	def generate_private_key(self, current_trustee, simple_private_key):
+								  
+	def generate_key_pair(self, current_trustee, simple_private_key):
 		"""
-		Construct the threshold private key for the scheme.
+		Constructs the threshold private and public key for the scheme.
 		
 		This  method requires all trustees' commitments to be loaded into the 
 		current instance. The partial private key given in each commitment for 
@@ -420,7 +423,8 @@ class ThresholdEncryptionSetUp:
 										their threshold private key.
 										
 		Returns:
-			threshold_private_key::ThresholdPrivateKey --
+			key_pair::ThresholdKeyPair --
+				A threshold key pair containing the threshold public key and 
 				current_trustee's threshold private key.
 		
 		Throws:
@@ -508,6 +512,46 @@ class ThresholdEncryptionSetUp:
 		for pp_key in partial_private_keys:
 			key = (key + pp_key) % prime
 		
-		# We construct and return the threshold private key
-		return ThresholdPrivateKey(self.cryptosystem, self._num_trustees, 
-								   self._threshold, key)
+		# We construct the threshold public key
+		threshold_public_key = self.generate_public_key()
+		
+		# We construct the threshold private key
+		threshold_private_key = ThresholdPrivateKey(self.cryptosystem, 
+													self._num_trustees, 
+													self._threshold,
+													threshold_public_key,
+													key)
+		
+		return ThresholdKeyPair(threshold_private_key, threshold_public_key)
+		
+	
+	def generate_private_key(self, current_trustee, simple_private_key):
+		"""
+		Construct the threshold private key for the scheme.
+		
+		This  method requires all trustees' commitments to be loaded into the 
+		current instance. The partial private key given in each commitment for 
+		the current trustee is verified to be consistent with the public 
+		coefficients given in the commitment.
+		
+		This trustee's threshold private key is generated as P(j)= SUM(P_{i}(j) 
+		for all the P_{i} polynomials of all trustees.
+		
+		Arguments:
+			current_trustee::int	-- The number of the trustee who wishes to 
+									   generate their threshold private key.
+			simple_private_key::PrivateKey	--The simple (1-to-1, non threshold)
+										private key of the trustee generating 
+										their threshold private key.
+										
+		Returns:
+			threshold_private_key::ThresholdPrivateKey --
+				current_trustee's threshold private key.
+		
+		Throws:
+			ThresholdEncryptionSetUpStateError -- If commitments are not loaded.
+			InvalidCommitmentError 	-- If a commitment gives an inconsistent 
+									   partial private key.
+		"""
+		kp = self.generate_key_pair(current_trustee, simple_private_key)
+		return kp.private_key

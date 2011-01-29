@@ -63,12 +63,15 @@ class ThresholdPrivateKey:
 		threshold::int	-- Minimum number of trustees required to decrypt 
 						   threshold  encrypted messages. 
 						   (the k in "k of n"-decryption)
+		public_key::ThresholdPublicKey	-- The threshold public key to which 
+										   this threshold private key is 
+										   associated.
 	"""
 	
 	#TODO: Add self.public_key
 	
-	def __init__(self, cryptosystem, num_trustees, threshold,
-				 private_key_value):
+	def __init__(self, cryptosystem, num_trustees, threshold, 
+				 threshold_public_key, private_key_value):
 		"""
 		Creates a new threshold private key. Should not be invoked directly.
 		
@@ -78,12 +81,16 @@ class ThresholdPrivateKey:
 		
 		Arguments:
 			(see class attributes for cryptosystem, num_trustees and threshold)
+			threshold_public_key::ThresholdPublicKey	-- 
+								The threshold public key to which this 
+								threshold private key is associated.
 			private_key_value::long		-- The actual value of the private key
 							(P(j) for trustee j, see ThresholdEncryptionSetUp)
 		"""
 		self.cryptosystem = cryptosystem
 		self.num_trustees = num_trustees
 		self.threshold = threshold
+		self.public_key = threshold_public_key
 		self._key = private_key_value
 	
 	def generate_partial_decryption(self, ciphertext):
