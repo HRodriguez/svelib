@@ -39,6 +39,7 @@ import xml.dom.minidom
 from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem, EGStub
 from plonevotecryptolib.PublicKey import PublicKey
 from plonevotecryptolib.Ciphertext import Ciphertext
+from plonevotecryptolib.PVCExceptions import InvalidPloneVoteCryptoFileError
 from plonevotecryptolib.PVCExceptions import IncompatibleCiphertextError
 from plonevotecryptolib.utilities.BitStream import BitStream
 
@@ -85,7 +86,7 @@ class PrivateKey:
 		Arguments:
 			ciphertext::Ciphertext	-- An encrypted Ciphertext object.
 			task_monitor::TaskMonitor	-- A task monitor for this task.
-			force:bool	-- Set to true if you wish to force a decryption 
+			force:bool	-- Set this to true if you wish to force a decryption 
 						   attempt, even when the ciphertext's stored public key
 						   fingerprint does not match that of the public key 
 						   associated with this private key.

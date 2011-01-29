@@ -1,22 +1,16 @@
-	17 Ene:
-		+ EGCryptoSystem and EGStub save to/load from file
-		+ plonevote.gen_cryptosys tool
-	18 Ene:
-		+ PrivateKey, PublicKey, KeyPair : generation
-		+ encrypt/decrypt bitstream/strings
-	19 Ene:
-		+ save/load keys
-		+ armored encrypted text format
-		+ plonevote.gen_keys
-		+ plonevote.encrypt
-		+ plonevote.decrypt
-		- milestones Sergio
 	21 Ene:
 		- threshold encryption
 		
-	- Threshold private key generation
+	+ Threshold private key generation
 	- Threshold decryption
 	- Threshold verifiable decryption
+	
+	- Save commitments to file
+	- Load commitments from file
+	- Load threshold private keys from file
+	- Save partial decryptions to file
+	- Load partial decryptions from file
+	- task_monitor support for threshold key set-up? 
 		
 	Next week:
 		- mixnets

@@ -38,9 +38,10 @@
 
 import xml.dom.minidom
 
-from plonevotecryptolib.PublicKey import PublicKey
-from plonevotecryptolib.PrivateKey import PrivateKey
+from plonevotecryptolib.Threshold.ThresholdPublicKey import ThresholdPublicKey
+from plonevotecryptolib.Threshold.PartialDecryption import PartialDecryption
 from plonevotecryptolib.PVCExceptions import InvalidPloneVoteCryptoFileError
+from plonevotecryptolib.PVCExceptions import IncompatibleCiphertextError
 
 class ThresholdPrivateKey:
 	"""
@@ -68,8 +69,6 @@ class ThresholdPrivateKey:
 										   associated.
 	"""
 	
-	#TODO: Add self.public_key
-	
 	def __init__(self, cryptosystem, num_trustees, threshold, 
 				 threshold_public_key, private_key_value):
 		"""
@@ -93,17 +92,68 @@ class ThresholdPrivateKey:
 		self.public_key = threshold_public_key
 		self._key = private_key_value
 	
-	def generate_partial_decryption(self, ciphertext):
+	def generate_partial_decryption(self, ciphertext, task_monitor=None, 
+									force=False):
 		"""
 		Generates a partial decryption for the given ciphertext.
+		
+		Arguments:
+			ciphertext::Ciphertext	-- An encrypted Ciphertext object.
+			task_monitor::TaskMonitor	-- A task monitor for this task.
+			force:bool	-- Set this to true if you wish to force a decryption 
+						   attempt, even when the ciphertext's stored public key
+						   fingerprint does not match that of the public key 
+						   associated with this private key.
 		
 		Returns:
 			partial_decryption::PartialDecryption	-- A partial decryption of 
 													   the given ciphertext 
 													   generated with this 
 													   threshold private key.
+		
+		Throws:
+			IncompatibleCiphertextError -- The given ciphertext does not appear 
+										   to be decryptable with the selected 
+										   private key.
 		"""
-		# TODO: Add a public key fingerprint check here!
+		# Check that the public key fingerprint stored in the ciphertext 
+		# matches the public key associated with this private key.
+		if(not force):
+			if(ciphertext.nbits != self.cryptosystem.get_nbits()):
+				raise IncompatibleCiphertextError("The given ciphertext is " \
+						"not decryptable with the selected private key: " \
+						"incompatible cryptosystem/key sizes.")
+			
+			if(ciphertext.pk_fingerprint != self.public_key.get_fingerprint()):
+				raise IncompatibleCiphertextError("The given ciphertext is " \
+						"not decryptable with the selected private key: " \
+						"public key fingerprint mismatch.")
+		
+		nbits = self.cryptosystem.get_nbits()
+		prime = self.cryptosystem.get_prime()
+		key = self._key
+		
+		# New empty partial decryption
+		partial_decryption = PartialDecryption(nbits)
+		
+		# Check if we have a task monitor and register with it
+		if(task_monitor != None):
+			# One tick per block
+			ticks = ciphertext.get_length()
+			partial_decrypt_task_mon = \
+				task_monitor.new_subtask("Generate partial decryption", 
+										 expected_ticks = ticks)
+		
+		# For each gamma component in the ciphertext, elevate gamma to the 
+		# threshold private key and store it as a partial decryption block.
+		# Thus block = g^{rP(i)} for each nbits block of original plaintext.
+		for gamma, delta in ciphertext:
+			block = pow(gamma, key, prime)
+			partial_decryption.add_partial_decryption_block(block)
+			if(task_monitor != None): partial_decrypt_task_mon.tick()
+		
+		return partial_decryption
+			
 		
 	def _to_xml(self):
 		"""
