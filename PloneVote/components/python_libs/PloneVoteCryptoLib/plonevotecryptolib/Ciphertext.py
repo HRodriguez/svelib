@@ -112,8 +112,9 @@ class Ciphertext:
 								  PublicKey.get_fingerprint() to check for 
 								  compatibility with a given key pair or 
 								  combined public key.
-		gamma::long[], delta::long[]	-- 
-			This attributes should only be accessed by key classes within 
+		gamma::long[]
+		delta::long[]	-- :
+			This two attributes should only be accessed by key classes within 
 			PloneVoteCryptoLib.
 			See "Handbook of Applied Cryptography" Algorithm 8.18 for the 
 			meaning of the variables. An array is used because the encrypted 

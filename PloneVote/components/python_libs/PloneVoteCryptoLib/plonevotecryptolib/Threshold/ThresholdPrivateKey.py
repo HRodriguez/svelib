@@ -65,13 +65,16 @@ class ThresholdPrivateKey:
 						   (the k in "k of n"-decryption)
 	"""
 	
+	#TODO: Add self.public_key
+	
 	def __init__(self, cryptosystem, num_trustees, threshold,
 				 private_key_value):
 		"""
 		Creates a new threshold private key. Should not be invoked directly.
 		
 		Instead of using this constructor from outside of PloneVoteCryptoLib, 
-		please use ThresholdEncryptionSetUp.generate_private_key().
+		please use ThresholdEncryptionSetUp.generate_private_key() or 
+		ThresholdEncryptionSetUp.generate_key_pair().
 		
 		Arguments:
 			(see class attributes for cryptosystem, num_trustees and threshold)
@@ -82,6 +85,18 @@ class ThresholdPrivateKey:
 		self.num_trustees = num_trustees
 		self.threshold = threshold
 		self._key = private_key_value
+	
+	def generate_partial_decryption(self, ciphertext):
+		"""
+		Generates a partial decryption for the given ciphertext.
+		
+		Returns:
+			partial_decryption::PartialDecryption	-- A partial decryption of 
+													   the given ciphertext 
+													   generated with this 
+													   threshold private key.
+		"""
+		# TODO: Add a public key fingerprint check here!
 		
 	def _to_xml(self):
 		"""
