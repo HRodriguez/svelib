@@ -11,6 +11,8 @@
 	- Save partial decryptions to file
 	- Load partial decryptions from file
 	- task_monitor support for threshold key set-up? 
+	
+	- XML serializer ?
 		
 	Next week:
 		- mixnets

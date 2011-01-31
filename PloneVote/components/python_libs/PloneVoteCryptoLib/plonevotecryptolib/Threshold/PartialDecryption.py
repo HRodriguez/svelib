@@ -51,13 +51,20 @@ class PartialDecryption:
 		nbits::int	-- Size in bits of the cryptosystem/public key used to 
 					   encrypt the ciphertext of which this is a partial 
 					   decryption.
-		blocks::long[]	-- This attribute should only be accessed by key 
-						   classes within PloneVoteCryptoLib. It contains the 
-						   list of nbit blocks of partial decryption, one per 
-						   each nbits block of the original plaintext (or one 
-						   for each gamma, delta pair in the ciphertext).
 	"""
 	
+	def __getitem__(self, i):
+		"""
+		Makes this object indexable.
+		
+		Returns:
+			block::long	-- Returns the ith nbits block of partial decryption. 
+						   This blocks should only be used by select classes 
+						   within PloneVoteCryptoLib, and not from outside 
+						   classes.
+		"""
+		return self._blocks[i]
+		
 	# CONSIDER: ciphertext_fingerprint ?
 	def __init__(self, nbits):
 		"""
@@ -73,7 +80,7 @@ class PartialDecryption:
 					   decryption.
 		"""
 		self.nbits = nbits
-		self.blocks = []
+		self._blocks = []
 	
 	#TODO: Add support for proofs!
 	def add_partial_decryption_block(self, block, proof=None):
@@ -90,5 +97,5 @@ class PartialDecryption:
 						   plaintext. One can also see it as corresponding to a 
 						   (gamma, delta) pair of the ciphertext.
 		"""
-		self.blocks.append(block)
+		self._blocks.append(block)
 		

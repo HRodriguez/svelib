@@ -2,6 +2,7 @@
 
 from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem as egcs
 from plonevotecryptolib.Threshold.ThresholdEncryptionSetUp import ThresholdEncryptionSetUp as tesu
+from plonevotecryptolib.Threshold.ThresholdDecryptionCombinator import ThresholdDecryptionCombinator
 
 cs = egcs.new()
 
@@ -31,8 +32,25 @@ for i in range(1,6):
 	for j in range(1,6):
 		trustee_tesetup.add_trustee_commitment(j, trustees[j - 1].commitment)
 	trustees[i - 1].tesu_fingerprint = trustee_tesetup.get_fingerprint()
-	print trustees[i - 1].tesu_fingerprint
-	trustees[i - 1].threshold_public_key = trustee_tesetup.generate_public_key()
-	print trustees[i - 1].threshold_public_key.get_fingerprint()
-	trustees[i - 1].threshold_private_key = trustee_tesetup.generate_private_key(i, trustees[i - 1].private_key)
-		
+	kp = trustee_tesetup.generate_key_pair(i, trustees[i - 1].private_key)
+	trustees[i - 1].threshold_public_key = kp.public_key
+	trustees[i - 1].threshold_private_key = kp.private_key
+
+message = "This is a test secret message: áñ. ö"
+
+t_public_key = trustees[0].threshold_public_key
+
+ciphertext = t_public_key.encrypt_text(message)
+
+partial_decryptions = [None for i in range(1,6)]
+
+for i in range(1,6):
+	partial_decryptions[i - 1] = trustees[i - 1].threshold_private_key.generate_partial_decryption(ciphertext)
+
+# Do combined decryption
+combinator = ThresholdDecryptionCombinator(cs, ciphertext, 5, 3)
+
+for i in range(1,4):
+	combinator.add_partial_decryption(i, partial_decryptions[i - 1])
+
+print combinator.decrypt_to_text()

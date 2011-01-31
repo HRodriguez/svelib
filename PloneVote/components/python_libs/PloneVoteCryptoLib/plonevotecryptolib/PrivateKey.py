@@ -157,7 +157,7 @@ class PrivateKey:
 						   associated with this private key.
 		
 		Returns:
-			string::string	-- Decrypted "message" as a string.
+			string::string	-- Decrypted message as a string.
 		
 		Throws:
 			IncompatibleCiphertextError -- The given ciphertext does not appear 

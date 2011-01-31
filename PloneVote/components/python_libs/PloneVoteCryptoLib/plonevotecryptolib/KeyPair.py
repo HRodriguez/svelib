@@ -54,9 +54,6 @@ class KeyPair:
 	"""
 	# ^ Redundant attribute description is redundant... redundantly
 	
-	public_key = None
-	private_key = None
-	
 	def __init__(self, cryptosystem):
 		"""
 		Generates a new key pair for the given EGCryptoSystem
