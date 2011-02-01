@@ -33,18 +33,76 @@
 # THE SOFTWARE.
 # ============================================================================
 
+# ============================================================================
+# Imports and constant definitions:
+# ============================================================================
+
 # Non crypto secure random, used only for shuffling lists of partial decryptions
 import random
+# Configurable precision rationals:
+import decimal
 
 from plonevotecryptolib.utilities.BitStream import BitStream
 
 __all__ = ["ThresholdDecryptionCombinator", 
 		   "InsuficientPartialDecryptionsError"]
 
+# ============================================================================
+
+# ============================================================================
+# Helper classes and functions:
+# ============================================================================
+
+class FractionTuple:
+	"""
+	A simple "tuple" with named attributes, used to represent a fraction.
+	
+	This doesn't support any fraction operations, just retrieving the numerator 
+	and denominator.
+	
+	Attributes:
+		numerator::int		-- The fraction's numerator.
+		denominator::int	-- The fraction's denominator.
+	"""
+	
+	def _gcd(self, a, b):
+		if a < 0: a *= -1
+		if b < 0: b *= -1
+		
+		if (a < b):
+		    a, b = b, a
+		while b != 0:
+		    a, b = b, a%b
+		return a
+	
+	def __init__(self, numerator, denominator):
+		"""
+		Constructs a new fraction tuple.
+		
+		Arguments:
+			(see class attributes)
+		"""
+		if(denominator == 0):
+			raise ValueError("The denominator of a fraction must not be 0.")
+		if(numerator % 1 != 0 or denominator % 1 != 0):
+			raise ValueError("The denominator and numerator of a fraction " \
+							 "must be integer numbers.")
+		
+		gcd = self._gcd(numerator, denominator)
+		self.numerator = numerator / gcd
+		self.denominator = denominator / gcd
+		if(self.denominator < 0):
+			self.numerator *= -1
+			self.denominator *= -1
+		
+
+
 def _lagrange_coefficient(indexes, i, x):
 	"""
 	Returns the Lagrange Coefficient for index i and value x in the given list 
 	of indexes.
+	
+	The coefficient is returned in fraction form.
 	
 	LaTeX definition of the Lagrange Coefficient:
 		$\lambda_{i}(x)=\prod_{j\in Indexes-\{i\}}\frac{x-j}{i-j}$
@@ -60,16 +118,82 @@ def _lagrange_coefficient(indexes, i, x):
 						   value of the polynomial.
 	
 	Returns:
-		lagrange_coeff::float		Lagrange Coefficient.
+		lagrange_coeff::FractionTuple	-- Lagrange Coefficient as a 
+										   fraction.
 	"""
-	lagrange_coeff = 1.0
-	x *= 1.0	# Ensure that we are using floating point arithmetic
+	numerator = 1
+	denominator = 1
+	
 	for j in indexes:
 		if(i == j):
 			continue
-		lagrange_coeff *= ((x - j) / (i - j))
+		numerator *= (x - j)
+		denominator *= (i - j)
 		
-	return lagrange_coeff
+	return FractionTuple(numerator, denominator)
+
+
+def _decimal_nth_root(num, n):
+	"""
+	Takes the nth root of a given Decimal configurable precision rational.
+	
+	Note: The root is taken with a precision of decimal.getcontext().prec.
+	
+	Adapted from:
+		http://www.programmish.com/?p=24
+	Algorithm:
+		http://en.wikipedia.org/wiki/Nth_root_algorithm
+	
+	Arguments:
+		num::Decimal	-- The number of which we wish to obtain the nth root.
+		n::int			-- n as in "the nth root"
+	
+	Returns:
+		num**(1/n) with precision decimal.getcontext().prec.
+	"""
+	assert type(num) == type(decimal.Decimal(0)), "num must be a Decimal."
+	
+	oneOverN = 1 / decimal.Decimal(n)
+	nMinusOne = decimal.Decimal(n) - 1
+	
+	# Initial guess
+	curVal = decimal.Decimal(num) / (decimal.Decimal(n) ** 2)
+	if curVal <= decimal.Decimal("1.0"):
+		curVal = decimal.Decimal("1.1")
+	lastVal = decimal.Decimal(0)
+	
+	# Note that this comparison is done with precision 
+	# decimal.getcontext().prec.
+	while lastVal != curVal:
+		lastVal = curVal
+		curVal = oneOverN * ( (nMinusOne * curVal) + (num / (curVal ** (n-1))))
+	return curVal
+
+	
+def	_round_decimal_to_int(dec):
+	"""
+	Takes a Decimal rational number and returns the closest integer.
+	
+	Note that we need this function, because int(Decimal) truncates instead of 
+	rounding and round() doesn't seem to work properly on Decimal objects.
+	
+	Arguments:
+		dec::Decimal	-- Any rational
+	
+	Returns:
+		result::int		-- The closest int to dec
+	"""
+	one_half = decimal.Decimal(1) / decimal.Decimal(2)
+	if(dec % 1 > one_half):
+		return int(dec) + 1
+	else:
+		return int(dec)
+
+# ============================================================================
+
+# ============================================================================
+# Exceptions:
+# ============================================================================
 
 class InsuficientPartialDecryptionsError(Exception):
 	"""
@@ -86,7 +210,13 @@ class InsuficientPartialDecryptionsError(Exception):
 		Create a new InsuficientPartialDecryptionsError exception.
 		"""
 		self.msg = msg
-		
+
+# ============================================================================
+
+# ============================================================================
+# Core class (ThresholdDecryptionCombinator):
+# ============================================================================
+	
 class ThresholdDecryptionCombinator:
 	"""
 	Used for combining partial decryptions into a full decryption.
@@ -198,6 +328,12 @@ class ThresholdDecryptionCombinator:
 		# We initialize our bitstream
 		bitstream = BitStream()
 		
+		# We are using decimal.Decimal configurable precision rationals for a 
+		# few of the following operations. We set decimal to use nbits 
+		# precision, so that we get the correct results when rounding to 
+		# integers in Z_{p}
+		decimal.getcontext().prec = nbits
+		import pdb; pdb.set_trace()
 		# For each block of partial decryption/(gamma, delta) pair of ciphertext
 		for b_index in range(0, self.ciphertext.get_length()):
 			
@@ -210,16 +346,24 @@ class ThresholdDecryptionCombinator:
 			# where \lambda_{i}(0) are the Lagrange Coefficients.
 			
 			gamma, delta = self.ciphertext[b_index]
-			val = 1
+			val = decimal.Decimal(1)
 			for trustee in trustees_indexes:
 				p_decryption = self._trustees_partial_decryptions[trustee - 1]
 				pd_block = p_decryption[b_index]
 				l_coeff = _lagrange_coefficient(trustees_indexes, trustee, 0)
-				val *= pow(pd_block, l_coeff)
-				val = val % prime
+				
+				# We wish to calculate pd_block^l_coeff, with l_coeff = a / b
+				# integers. That is, we wish to obtain:
+				# b-root((pd_block^a))
+				# Important: We use Decimal to avoid rounding errors.
+				power = decimal.Decimal(pd_block) ** l_coeff.numerator
+				power = _decimal_nth_root(power, l_coeff.denominator)
+				val *= power
+			
+			val = _round_decimal_to_int(val) % prime
 			
 			# We decrypt a block of message as m = delta/val.
-			m = int(round(delta/val))
+			m = delta/val
 			
 			# ... and add it to the bitstream.
 			bitstream.put_num(m, nbits)
