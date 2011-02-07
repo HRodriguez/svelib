@@ -216,24 +216,24 @@ class ThresholdDecryptionCombinator:
 		"""
 		# Get the indexes of all trustees for which we have a registered
 		# partial decryption
-		trustees_indexes = []
+		trustee_indexes = []
 		for trustee in range(1, self._num_trustees + 1):
 			decryption = self._trustees_partial_decryptions[trustee - 1]
 			if(decryption != None):
-				trustees_indexes.append(trustee)
+				trustee_indexes.append(trustee)
 		
 		# Check that we have enough trustees.
-		if (len(trustees_indexes) < self._threshold):
+		if (len(trustee_indexes) < self._threshold):
 			raise InsuficientPartialDecryptionsError("Not enough partial " \
 					"decryptions have been registered with this object to " \
 					"create a combined decryption. Registered partial " \
 					"decryptions: %d. Required partial decryptions " \
 					"(threshold): %d." \
-					% (len(trustees_indexes), self._threshold))
+					% (len(trustee_indexes), self._threshold))
 					
 		# We only need threshold trustees, exactly. Select those at random.
-		random.shuffle(trustees_indexes)
-		trustees_indexes = trustees_indexes[0:self._threshold]
+		random.shuffle(trustee_indexes)
+		trustee_indexes = trustee_indexes[0:self._threshold]
 		
 		# We get the number of bits and prime for the cryptosystem
 		nbits = self.cryptosystem.get_nbits()
@@ -247,6 +247,14 @@ class ThresholdDecryptionCombinator:
 		
 		# We initialize our bitstream
 		bitstream = BitStream()
+		
+		# We pre-calculate the lagrange coefficients for the trustees in Z_{q}
+		# for x = 0, to avoid doing so for each block of ciphertext.
+		# See below for an explanation of the use of lagrange coefficients.
+		lagrange_coeffs = [None for i in range(0,self._num_trustees + 1)]
+		for trustee in trustee_indexes:
+			lagrange_coeffs[trustee] = \
+				_lagrange_coefficient(trustee_indexes, trustee, 0, q)
 		
 		# For each block of partial decryption/(gamma, delta) pair of ciphertext
 		for b_index in range(0, self.ciphertext.get_length()):
@@ -273,12 +281,17 @@ class ThresholdDecryptionCombinator:
 			
 			gamma, delta = self.ciphertext[b_index]
 			val = 1
-			for trustee in trustees_indexes:
+			for trustee in trustee_indexes:
 				p_decryption = self._trustees_partial_decryptions[trustee - 1]
 				pd_block = p_decryption[b_index]
 				
 				# We get \lambda_{i}(0) in the field Z_{q} for the trustees
-				l_coeff = _lagrange_coefficient(trustees_indexes, trustee, 0, q)
+				l_coeff = lagrange_coeffs[trustee]
+				
+				# We assert that the \lambda_{i}(0) was pre-calculated.
+				assert (l_coeff != None), "lagrange coefficients for " \
+										  "trustees in trustee_indexes " \
+										  "should have been pre-calculated."
 				
 				# factor: $\left(g^{rP\left(i\right)}\right)^{2\lambda_{i}(0)}$
 				factor = pow(pd_block, 2*l_coeff, prime)
