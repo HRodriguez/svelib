@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # ToDo: Turn this into an actual test case / doctest
 
 from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem as egcs

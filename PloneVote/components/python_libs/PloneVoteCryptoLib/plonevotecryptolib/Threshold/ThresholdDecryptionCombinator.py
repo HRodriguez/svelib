@@ -39,8 +39,6 @@
 
 # Non crypto secure random, used only for shuffling lists of partial decryptions
 import random
-# Configurable precision rationals:
-import decimal
 
 from plonevotecryptolib.utilities.BitStream import BitStream
 
@@ -50,64 +48,27 @@ __all__ = ["ThresholdDecryptionCombinator",
 # ============================================================================
 
 # ============================================================================
-# Helper classes and functions:
+# Helper functions:
 # ============================================================================
 
-class FractionTuple:
-	"""
-	A simple "tuple" with named attributes, used to represent a fraction.
-	
-	This doesn't support any fraction operations, just retrieving the numerator 
-	and denominator.
-	
-	Attributes:
-		numerator::int		-- The fraction's numerator.
-		denominator::int	-- The fraction's denominator.
-	"""
-	
-	def _gcd(self, a, b):
-		if a < 0: a *= -1
-		if b < 0: b *= -1
-		
-		if (a < b):
-		    a, b = b, a
-		while b != 0:
-		    a, b = b, a%b
-		return a
-	
-	def __init__(self, numerator, denominator):
-		"""
-		Constructs a new fraction tuple.
-		
-		Arguments:
-			(see class attributes)
-		"""
-		if(denominator == 0):
-			raise ValueError("The denominator of a fraction must not be 0.")
-		if(numerator % 1 != 0 or denominator % 1 != 0):
-			raise ValueError("The denominator and numerator of a fraction " \
-							 "must be integer numbers.")
-		
-		gcd = self._gcd(numerator, denominator)
-		self.numerator = numerator / gcd
-		self.denominator = denominator / gcd
-		if(self.denominator < 0):
-			self.numerator *= -1
-			self.denominator *= -1
-		
-
-
-def _lagrange_coefficient(indexes, i, x):
+def _lagrange_coefficient(indexes, i, x, prime_modulus):
 	"""
 	Returns the Lagrange Coefficient for index i and value x in the given list 
-	of indexes.
+	of indexes, calculated on the field Z_{prime_modulus}.
 	
-	The coefficient is returned in fraction form.
+	The coefficient is returned as a whole number in the field 
+	Z_{prime_modulus}.
 	
 	LaTeX definition of the Lagrange Coefficient:
 		$\lambda_{i}(x)=\prod_{j\in Indexes-\{i\}}\frac{x-j}{i-j}$
 	
 	See: http://en.wikipedia.org/wiki/Polynomial_interpolation
+	
+	Note that we use division of the field Z_{prime_modulus}, rather than real 
+	division. That is:
+		$\lambda_{i}(x)=\prod_{j\in Indexes-\{i\}}(x-j)(i-j)^{-1}$
+	
+	Where $(i-j)^{-1}$ is the inverse of (i-j) in the field Z_{prime_modulus}.
 	
 	Arguments:
 		indexes::int[]	-- The valid indexes for the Lagrange Coefficient, 
@@ -116,11 +77,14 @@ def _lagrange_coefficient(indexes, i, x):
 		i::int			-- Index of the Lagrange Coefficient we want.
 		x::int			-- x-coordinate at which we wish to interpolate the 
 						   value of the polynomial.
+		prime_modulus::long	-- A prime number. Which guarantees that 
+							   Z_{prime_modulus} is a field.
 	
 	Returns:
-		lagrange_coeff::FractionTuple	-- Lagrange Coefficient as a 
-										   fraction.
+		lagrange_coeff::long -- The lagrange coefficient in Z_{prime_modulus}.
 	"""
+	# We calculate the whole coefficient as a fraction and the take the inverse 
+	# of the denominator in Z_{prime_modulus}, rather than inverting each (i-j)  
 	numerator = 1
 	denominator = 1
 	
@@ -129,65 +93,15 @@ def _lagrange_coefficient(indexes, i, x):
 			continue
 		numerator *= (x - j)
 		denominator *= (i - j)
-		
-	return FractionTuple(numerator, denominator)
-
-
-def _decimal_nth_root(num, n):
-	"""
-	Takes the nth root of a given Decimal configurable precision rational.
 	
-	Note: The root is taken with a precision of decimal.getcontext().prec.
+	numerator = numerator % prime_modulus
+	denominator = denominator % prime_modulus
+	# a^(p-2) is the inverse of a in Z_{p} with p prime. Proof:
+	# (a)(a^(p-2)) = a^(p-1) = 1
+	inv_denominator = pow(denominator, prime_modulus - 2, prime_modulus)
 	
-	Adapted from:
-		http://www.programmish.com/?p=24
-	Algorithm:
-		http://en.wikipedia.org/wiki/Nth_root_algorithm
-	
-	Arguments:
-		num::Decimal	-- The number of which we wish to obtain the nth root.
-		n::int			-- n as in "the nth root"
-	
-	Returns:
-		num**(1/n) with precision decimal.getcontext().prec.
-	"""
-	assert type(num) == type(decimal.Decimal(0)), "num must be a Decimal."
-	
-	oneOverN = 1 / decimal.Decimal(n)
-	nMinusOne = decimal.Decimal(n) - 1
-	
-	# Initial guess
-	curVal = decimal.Decimal(num) / (decimal.Decimal(n) ** 2)
-	if curVal <= decimal.Decimal("1.0"):
-		curVal = decimal.Decimal("1.1")
-	lastVal = decimal.Decimal(0)
-	
-	# Note that this comparison is done with precision 
-	# decimal.getcontext().prec.
-	while lastVal != curVal:
-		lastVal = curVal
-		curVal = oneOverN * ( (nMinusOne * curVal) + (num / (curVal ** (n-1))))
-	return curVal
-
-	
-def	_round_decimal_to_int(dec):
-	"""
-	Takes a Decimal rational number and returns the closest integer.
-	
-	Note that we need this function, because int(Decimal) truncates instead of 
-	rounding and round() doesn't seem to work properly on Decimal objects.
-	
-	Arguments:
-		dec::Decimal	-- Any rational
-	
-	Returns:
-		result::int		-- The closest int to dec
-	"""
-	one_half = decimal.Decimal(1) / decimal.Decimal(2)
-	if(dec % 1 > one_half):
-		return int(dec) + 1
-	else:
-		return int(dec)
+	result = (numerator*inv_denominator) % prime_modulus
+	return result
 
 # ============================================================================
 
@@ -324,49 +238,60 @@ class ThresholdDecryptionCombinator:
 		# We get the number of bits and prime for the cryptosystem
 		nbits = self.cryptosystem.get_nbits()
 		prime = self.cryptosystem.get_prime()
+		#  prime = 2q + 1 with q prime by construction (see EGCryptoSystem).
+		q = (prime - 1) / 2
+		
+		# See PublicKey.encrypt_bitstream for why we use nbits - 1 as the block 
+		# size.
+		block_size = self.cryptosystem.get_nbits() - 1
 		
 		# We initialize our bitstream
 		bitstream = BitStream()
 		
-		# We are using decimal.Decimal configurable precision rationals for a 
-		# few of the following operations. We set decimal to use nbits 
-		# precision, so that we get the correct results when rounding to 
-		# integers in Z_{p}
-		decimal.getcontext().prec = nbits
-		import pdb; pdb.set_trace()
 		# For each block of partial decryption/(gamma, delta) pair of ciphertext
 		for b_index in range(0, self.ciphertext.get_length()):
 			
 			# Each partial decryption block is of the form g^{rP(i)}, where 
-			# (gamma, delta) = (g^r, m*g^{rP(0)}).
-			# We must first interpolate val=g^{rP(0)} from the g^{rP(i)}'s.
+			# (gamma, delta) = (g^r, m*g^{r2P(0)}).
+			#
+			# We must first interpolate val=g^{r2P(0)} from the g^{rP(i)}'s.
 			# Interpolation of val (LaTeX):
-			# $g^{rP(0)}=g^{r\sum_{i\in I}P(i)\lambda_{i}(0)}=
-			# \prod_{i\in I}\left(g^{rP\left(i\right)}\right)^{\lambda_{i}(0)}$
+			# $g^{r2P(0)}=g^{\sum_{i\in I}r2P(i)\lambda_{i}(0)}=
+			# \prod_{i\in I}\left(g^{rP\left(i\right)}\right)^{2\lambda_{i}(0)}$
 			# where \lambda_{i}(0) are the Lagrange Coefficients.
+			#
+			# Note that the polynomials are in the field Z_{q} where q is such 
+			# that p = 2*q + 1 and prime. This allows us to use lagrange 
+			# interpolation. However, in order for the whole g^{...} values to 
+			# be equal mod p, we need to have the exponents be equal mod (p-1) 
+			# (rather than mod q), so we multiply by 2. Remember that this 
+			# means that 2P(0) is our private key for the threshold encryption 
+			# (although it never gets created by any of the parties), and the 
+			# reason why g^2P(0) is the threshold public key.
+			#
+			# See (TODO: Add reference) for the full explanation
 			
 			gamma, delta = self.ciphertext[b_index]
-			val = decimal.Decimal(1)
+			val = 1
 			for trustee in trustees_indexes:
 				p_decryption = self._trustees_partial_decryptions[trustee - 1]
 				pd_block = p_decryption[b_index]
-				l_coeff = _lagrange_coefficient(trustees_indexes, trustee, 0)
 				
-				# We wish to calculate pd_block^l_coeff, with l_coeff = a / b
-				# integers. That is, we wish to obtain:
-				# b-root((pd_block^a))
-				# Important: We use Decimal to avoid rounding errors.
-				power = decimal.Decimal(pd_block) ** l_coeff.numerator
-				power = _decimal_nth_root(power, l_coeff.denominator)
-				val *= power
+				# We get \lambda_{i}(0) in the field Z_{q} for the trustees
+				l_coeff = _lagrange_coefficient(trustees_indexes, trustee, 0, q)
+				
+				# factor: $\left(g^{rP\left(i\right)}\right)^{2\lambda_{i}(0)}$
+				factor = pow(pd_block, 2*l_coeff, prime)
+				
+				val = (val*factor) % prime
 			
-			val = _round_decimal_to_int(val) % prime
-			
-			# We decrypt a block of message as m = delta/val.
-			m = delta/val
+			# We decrypt a block of message as m = delta/val = delta*(val)^{-1}.
+			# (val)^{-1} the inverse of val in Z_{p}
+			inv_val = pow(val, prime - 2, prime)
+			m = (delta*inv_val) % prime
 			
 			# ... and add it to the bitstream.
-			bitstream.put_num(m, nbits)
+			bitstream.put_num(m, block_size)
 		
 		# Return the decrypted bitstream
 		return bitstream
