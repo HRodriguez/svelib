@@ -135,7 +135,6 @@ class PartialDecryption:
 		"""
 		return self._blocks[i]
 		
-	# TODO: CONSIDER: ciphertext_fingerprint ?
 	def __init__(self, nbits):
 		"""
 		Create an empty partial decryption object.

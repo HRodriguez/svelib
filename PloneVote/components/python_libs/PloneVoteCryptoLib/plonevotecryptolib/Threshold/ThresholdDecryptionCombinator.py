@@ -283,7 +283,12 @@ class ThresholdDecryptionCombinator:
 			val = 1
 			for trustee in trustee_indexes:
 				p_decryption = self._trustees_partial_decryptions[trustee - 1]
-				pd_block = p_decryption[b_index]
+				
+				# Get the value (g^{rP(i)}) of the partial decryption block.
+				#  Remember that each PartialDecryptionBlock is an object 
+				#  containing both the value of the block and its proof of 
+				#  partial decryption
+				pd_block = p_decryption[b_index].value
 				
 				# We get \lambda_{i}(0) in the field Z_{q} for the trustees
 				l_coeff = lagrange_coeffs[trustee]

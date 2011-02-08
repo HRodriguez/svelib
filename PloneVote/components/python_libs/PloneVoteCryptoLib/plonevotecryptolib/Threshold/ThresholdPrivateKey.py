@@ -40,6 +40,9 @@ import xml.dom.minidom
 
 from plonevotecryptolib.Threshold.ThresholdPublicKey import ThresholdPublicKey
 from plonevotecryptolib.Threshold.PartialDecryption import PartialDecryption
+from plonevotecryptolib.Threshold.PartialDecryption import PartialDecryptionBlock
+from plonevotecryptolib.Threshold.PartialDecryption import PartialDecryptionBlockProof
+
 from plonevotecryptolib.PVCExceptions import InvalidPloneVoteCryptoFileError
 from plonevotecryptolib.PVCExceptions import IncompatibleCiphertextError
 
@@ -144,12 +147,23 @@ class ThresholdPrivateKey:
 				task_monitor.new_subtask("Generate partial decryption", 
 										 expected_ticks = ticks)
 		
-		# For each gamma component in the ciphertext, elevate gamma to the 
-		# threshold private key and store it as a partial decryption block.
-		# Thus block = g^{rP(i)} for each nbits block of original plaintext.
+		# For each gamma component in the ciphertext, generate one partial 
+		# decryption block (with proof):
 		for gamma, delta in ciphertext:
-			block = pow(gamma, key, prime)
+		
+			# To calculate the value of the block, elevate gamma to the 
+			# threshold private key. That is block.value = g^{rP(i)} for each 
+			# nbits block of original plaintext.
+			value = pow(gamma, key, prime)
+			
+			# TODO: Add proof != None
+			
+			# Generate the block as (value, proof) and add it to the partial 
+			# decryption object.
+			block = PartialDecryptionBlock(value, None)
 			partial_decryption.add_partial_decryption_block(block)
+			
+			# Update task progress
 			if(task_monitor != None): partial_decrypt_task_mon.tick()
 		
 		return partial_decryption
