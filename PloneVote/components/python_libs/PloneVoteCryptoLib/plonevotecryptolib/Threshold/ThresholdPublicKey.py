@@ -35,6 +35,8 @@
 
 import xml.dom.minidom
 
+import Crypto.Hash.SHA256	# sha256 is not available in python 2.4 standard lib
+
 from plonevotecryptolib.PublicKey import PublicKey
 from plonevotecryptolib.PVCExceptions import InvalidPloneVoteCryptoFileError
 
@@ -58,7 +60,37 @@ class ThresholdPublicKey(PublicKey):
 						   (the k in "k of n"-decryption)
 	"""
 	
-	def __init__(self, cryptosystem, num_trustees, threshold, public_key_value):
+	def get_fingerprint(self):
+		# We override this PublicKey method to add partial public keys to the 
+		# input of the hash function to create the fingerprint.
+		fingerprint = Crypto.Hash.SHA256.new()
+		fingerprint.update(hex(self.cryptosystem.get_nbits()))
+		fingerprint.update(hex(self.cryptosystem.get_prime()))
+		fingerprint.update(hex(self.cryptosystem.get_generator()))
+		fingerprint.update(hex(self._key))
+		for partial_public_key in self._partial_public_keys:
+			fingerprint.update(hex(partial_public_key))
+		return fingerprint.hexdigest()
+	
+	def get_partial_public_key(self, trustee):
+		"""
+		Retrieve the partial public key for the given trustee.
+		
+		The partial public key for trustee i is g^P(i). This value is used for 
+		verification of the partial decryptions created by said trustee.
+		
+		Instead of using this values from outside of PloneVoteCryptoLib, 
+		please use ThresholdDecryptionCombinator to verify and combine partial 
+		decryptions.
+		
+		Arguments:
+			trustee::int	-- The number of the trustee for which we wish to 
+							   obtain the partial public key.
+		"""
+		return self._partial_public_keys[trustee - 1]
+	
+	def __init__(self, cryptosystem, num_trustees, threshold, 
+				 public_key_value, verification_partial_public_keys):
 		"""
 		Creates a new threshold public key. Should not be invoked directly.
 		
@@ -68,11 +100,31 @@ class ThresholdPublicKey(PublicKey):
 		Arguments:
 			(see class attributes for cryptosystem, num_trustees and threshold)
 			public_key_value::long		-- The actual value of the public key
-									(g^P(0) mod p, see ThresholdEncryptionSetUp)
+								(g^2P(0) mod p, see ThresholdEncryptionSetUp)
+			verification_partial_public_keys::long[]
+					-- A series of "partial public keys" (g^P(i) for each 
+					   trustee i), used for partial decryption verification.
+					   Note that the key for trustee i must be on index i-1 of
+					   the array.
 		"""
 		PublicKey.__init__(self, cryptosystem, public_key_value)
+		
+		# Some checks:
+		if(threshold > num_trustees):
+			raise ValueError("Invalid parameters for the threshold public key:"\
+							 " threshold must be smaller than the total number"\
+							 " of trustees. Got num_trustees=%d, threshold=%d" \
+							 % (num_trustees, threshold))
+		
+		if(len(verification_partial_public_keys) != num_trustees):
+			raise ValueError("Invalid parameters for the threshold public key:"\
+							 " a verification partial public for each trustee "\
+							 "must be included.")
+			
 		self.num_trustees = num_trustees
 		self.threshold = threshold
+		self._partial_public_keys = verification_partial_public_keys
+	
 	
 	# Check if overriding a _method is O.K., as well as using _key directly.
 	# (This two clases are expected to be kept coupled and in the same library, 
@@ -98,6 +150,23 @@ class ThresholdPublicKey(PublicKey):
 			key_str = key_str[0:-1]			# Remove trailing 'L'
 		key_element.appendChild(doc.createTextNode(key_str))
 		root_element.appendChild(key_element)
+		
+		# Include verification partial public keys
+		partial_pub_keys_element = \
+						doc.createElement("VerificationPartialPublicKeys")
+		for trustee in range(1, self.num_trustees + 1):
+			part_pub_key = self.get_partial_public_key(trustee)
+			part_pub_key_element = doc.createElement("PartialPublicKey")
+			part_pub_key_element.setAttribute("trustee", str(trustee))
+			part_pub_key_str = hex(part_pub_key)[2:]	# Remove leading '0x'
+			if(key_str[-1] == 'L'): 
+				part_pub_key_str = part_pub_key_str[0:-1] # Remove trailing 'L'
+			text_node = doc.createTextNode(part_pub_key_str)
+			part_pub_key_element.appendChild(text_node)
+			partial_pub_keys_element.appendChild(part_pub_key_element)
+			
+			
+		root_element.appendChild(partial_pub_keys_element)
 		
 		cs_scheme_element = self.cryptosystem.to_dom_element(doc)
 		root_element.appendChild(cs_scheme_element)
@@ -161,6 +230,8 @@ class ThresholdPublicKey(PublicKey):
 				"total number of trustees.")
 		
 		(cryptosystem, key) = PublicKey._parse_root_element(root_element)
+		
+		#TODO: Load partial public keys from the xml.
 		
 		# Construct and return the PublicKey object
 		return cls(cryptosystem, num_trustees, threshold, key)
