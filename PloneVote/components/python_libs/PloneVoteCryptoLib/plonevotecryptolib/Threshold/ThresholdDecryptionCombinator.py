@@ -40,6 +40,7 @@
 # Non crypto secure random, used only for shuffling lists of partial decryptions
 import random
 
+from plonevotecryptolib.PVCExceptions import ElectionSecurityError
 from plonevotecryptolib.utilities.BitStream import BitStream
 
 __all__ = ["ThresholdDecryptionCombinator", 
@@ -109,6 +110,31 @@ def _lagrange_coefficient(indexes, i, x, prime_modulus):
 # Exceptions:
 # ============================================================================
 
+class InvalidPartialDecryptionError(ElectionSecurityError):
+	"""
+	Raised when attempting to add a PartialDecryption object to a 
+	ThresholdDecryptionCombinator if said object is not a valid partial 
+	decryption for the ciphertext contained in the combinator.
+	"""
+	pass
+
+class InvalidPartialDecryptionProofError(InvalidPartialDecryptionError):
+	"""
+	Raised when attempting to add a PartialDecryption object to a 
+	ThresholdDecryptionCombinator if the partial decryption proof is invalid 
+	for the ciphertext contained in the combinator.
+	
+	This is a subclass of InvalidPartialDecryptionError, as it is an specific 
+	reason why a partial decryption might be invalid. A program using 
+	PloneVoteCryptoLib should catch this exception if it wishes to handle the 
+	scenario of an invalid proof of partial decryption in a different way 
+	from how it handles other cases in which the partial decryption is invalid 
+	(eg. because of a difference in the number of bits per block between 
+	ciphertext and partial decryption block). Otherwise, an application can 
+	just catch both exceptions as InvalidPartialDecryptionError.
+	"""
+	pass
+
 class InsuficientPartialDecryptionsError(Exception):
 	"""
 	Raised when ThresholdDecryptionCombinator.decrypt_to_X is called before at 
@@ -162,6 +188,13 @@ class ThresholdDecryptionCombinator:
 							   threshold encrypted messages. 
 							   (the k in "k of n"-decryption)
 		"""
+		
+		# Check that the ciphertext and cryptosystem are (or appear to be)
+		# compatible
+		if(ciphertext.nbits != cryptosystem.get_nbits()):
+			raise ValueError("Incompatible ciphertext and cryptosystem: " \
+							 "bit size mismatch.")
+		
 		self.cryptosystem = cryptosystem
 		self.ciphertext = ciphertext
 		self._num_trustees = num_trustees
@@ -180,20 +213,51 @@ class ThresholdDecryptionCombinator:
 							   (trustees are indexed from 1 to num_trustees)
 			partial_decryption::PartialDecryption	--  The trustee's partial 
 													    decryption.
+		
+		Throws:
+			InvalidPartialDecryptionError -- The partial decryption is invalid 
+											 for the current ciphertext.
+			InvalidPartialDecryptionProofError -- 
+					(Subclass of InvalidPartialDecryptionError)
+					The partial decryption is invalid for the current 
+					ciphertext because the proof of partial decryption is 
+					incorrect for a partial decryption block and thus the 
+					partial decryption cannot be verified to be correct.
 		"""
 		if(not (1 <= trustee <= self._num_trustees)):
 			raise ValueError("Invalid trustee. The threshold scheme trustees " \
 							"must be indexed from 1 to %d" % self._num_trustees)
 		
-		# TODO: Consider adding compatibility (fingerprint?) checks with the 
-		# ciphertext. Possibly even performing partial decryption verification 
-		# here if possible.
-		# Check at least that decryptions are the RIGHT LENGTH 
+		# Get a few parameters we might need for partial decryption verification
+		nbits = self.cryptosystem.get_nbits()
+		prime = self.cryptosystem.get_prime()
+		generator = self.cryptosystem.get_generator()
+		
+		# Check that the partial decryption's block size matches the 
+		# ciphertext's bit size.
+		if(partial_decryption.nbits != nbits):
+			raise InvalidPartialDecryptionError("Invalid partial decryption " \
+				"for trustee %d: The bit size of the partial decryption's " \
+				"blocks (%d bits) does not match the bit size of the " \
+				"ciphertext blocks (%d bits)." % \
+				(trustee, partial_decryption.nbits, nbits))
+		
+		# Check that there's the right amount of partial decryption blocks.
+		num_pd_blocks = partial_decryption.get_length()
+		if(num_pd_blocks != self.ciphertext.get_length()):
+			raise InvalidPartialDecryptionError("Invalid partial decryption " \
+				"for trustee %d: The number of blocks in the partial " \
+				"decryption (%d) does not match the number of blocks in the " \
+				"ciphertext (%d)." % \
+				(trustee, num_pd_blocks, self.ciphertext.get_length()))
+		
+		# Verify the proofs of partial decryption for each partial decryption's 
+		# block. (This is far more reliable than doing a ciphertext/public_key 
+		# fingerprint check and can also detect maliciously forged partial 
+		# decryptions.)
 		
 		self._trustees_partial_decryptions[trustee - 1] = partial_decryption
 	
-	#TODO: Consider whether "force" is needed here or on add_partial_decryption
-	# (perhaps on the constructor? )
 	def decrypt_to_bitstream(self, task_monitor=None):
 		"""
 		Decrypt the ciphertext to a bitstream, using the partial decryptions.

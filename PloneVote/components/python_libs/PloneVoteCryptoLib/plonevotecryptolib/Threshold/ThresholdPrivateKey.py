@@ -189,7 +189,7 @@ class ThresholdPrivateKey:
 			sha256.update(hex(a))
 			sha256.update(hex(b))
 			sha256.update(hex(pow(generator, key, prime)))
-			sha256.update(value)
+			sha256.update(hex(value))
 			c = int(sha256.hexdigest(),16)
 			
 			# t = s + 2P(j)*c mod p (P(j): trustee j's threshold private key)

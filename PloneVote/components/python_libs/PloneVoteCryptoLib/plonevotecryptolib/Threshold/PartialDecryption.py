@@ -134,6 +134,12 @@ class PartialDecryption:
 						 	classes.
 		"""
 		return self._blocks[i]
+	
+	def get_length(self):
+		"""
+		Get the length of this partial decryption in blocks.
+		"""
+		return len(self._blocks)
 		
 	def __init__(self, nbits):
 		"""
