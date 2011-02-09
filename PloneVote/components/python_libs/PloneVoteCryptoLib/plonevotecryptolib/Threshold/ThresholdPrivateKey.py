@@ -184,12 +184,12 @@ class ThresholdPrivateKey:
 			# b = gamma^{s} mod p
 			b = pow(gamma, s, prime)
 			
-			# c is SHA256(a, b, g^{2P(j)}, block^2) the challenge
+			# c is SHA256(a, b, g^{P(j)}, block) the challenge
 			sha256 =  Crypto.Hash.SHA256.new()
 			sha256.update(hex(a))
 			sha256.update(hex(b))
-			sha256.update(hex(pow(generator, 2*key, prime)))
-			sha256.update(hex(pow(value, 2, prime)))
+			sha256.update(hex(pow(generator, key, prime)))
+			sha256.update(value)
 			c = int(sha256.hexdigest(),16)
 			
 			# t = s + 2P(j)*c mod p (P(j): trustee j's threshold private key)
