@@ -40,6 +40,8 @@
 # Non crypto secure random, used only for shuffling lists of partial decryptions
 import random
 
+import Crypto.Hash.SHA256	# sha256 is not available in python 2.4 standard lib
+
 from plonevotecryptolib.PVCExceptions import ElectionSecurityError
 from plonevotecryptolib.utilities.BitStream import BitStream
 
@@ -255,8 +257,13 @@ class ThresholdDecryptionCombinator:
 				(trustee, num_pd_blocks, self._ciphertext.get_length()))
 		
 		# Get the partial public key for the current trustee, that is:
-		# g^{P(j)} where j is the trustee's index.
-		ppub_key = 0
+		# g^{2P(j)} where j is the trustee's index.
+		#
+		# IMPORTANT: We are saving the partial public keys for trustees as 
+		# g^{2P(j)}, while we save the private keys as P(j), we adjust for that 
+		# in this method and in ThresholdPrivateKey.generate_decryption(...)
+		# (See [TODO: Add reference])
+		ppub_key = self.public_key.get_partial_public_key(trustee)
 		
 		# Verify the proofs of partial decryption for each partial decryption's 
 		# block. (This is far more reliable than doing a ciphertext/public_key 
@@ -267,6 +274,9 @@ class ThresholdDecryptionCombinator:
 			# Get the partial decryption block
 			pd_block = partial_decryption[b_index]
 			
+			# And corresponding ciphertext block
+			gamma, delta = self._ciphertext[b_index]
+			
 			# Retrieve the values of the proof:
 			# a = g^{s} mod p
 			a = pd_block.proof.a
@@ -276,12 +286,39 @@ class ThresholdDecryptionCombinator:
 			t = pd_block.proof.t
 			
 			# Re-generate challenge c as SHA256(a, b, g^{P(j)}, block)
-			#sha256 =  Crypto.Hash.SHA256.new()
-			#sha256.update(hex(a))
-			#sha256.update(hex(b))
-			#sha256.update(hex(ppub_key)
-			#sha256.update(hex(pd_block.value))
-			#c = int(sha256.hexdigest(),16)
+			sha256 =  Crypto.Hash.SHA256.new()
+			sha256.update(hex(a))
+			sha256.update(hex(b))
+			sha256.update(hex(ppub_key))
+			sha256.update(hex(pd_block.value))
+			c = int(sha256.hexdigest(),16)
+			
+			# verify the proof, in two parts:
+			proof_valid = True
+			
+			# (See [TODO: Add reference])
+			# verify that g^t == a*(g^{2P(j)})^c
+			lhs = pow(generator, t, prime)	# g^t
+			rhs = (a*pow(ppub_key, c, prime)) % prime	# a*(g^{2P(j)})^c
+			
+			if(lhs != rhs):
+				proof_valid = False
+			
+			# verify gamma^t = b*(block^2)^c (since block = gamma^P(j))
+			lhs = pow(gamma, t, prime)	# g^t
+			rhs = (b*pow(pd_block.value, 2*c, prime)) % prime # b*(block^2)^c
+			
+			if(lhs != rhs):
+				proof_valid = False
+			
+			if(not proof_valid):
+				raise InvalidPartialDecryptionProofError( \
+					"Invalid partial decryption for trustee %d: The proof " \
+					"accompanying the partial decryption was found invalid " \
+					"for this combination of threshold public key, " \
+					"ciphertext and partial decryption object. The first " \
+					"invalid proof was for block %d of the partial decryption."\
+					 % (trustee, b_index))
 			
 		
 		self._trustees_partial_decryptions[trustee - 1] = partial_decryption
