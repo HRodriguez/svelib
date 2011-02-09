@@ -167,19 +167,21 @@ class ThresholdDecryptionCombinator:
 	created with the correct trustee's theshold private key.
 	
 	Attributes (public):
-		cryptosystem::EGCryptoSystem	-- The shared cryptosystem used by the 
-										   threshold scheme.
+		public_key::ThresholdPublicKey	-- The threshold public key used to 
+										   encrypt the ciphertext we seek to 
+										   decrypt.
 		ciphertext::Ciphertext	-- The encrypted ciphertext that this 
 								   combinator is set-up to decrypt.
 	"""
 	
-	def __init__(self, cryptosystem, ciphertext, num_trustees, threshold):
+	def __init__(self, public_key, ciphertext, num_trustees, threshold):
 		"""
 		Constructs a ThresholdDecryptionCombinator class.
 		
 		Arguments:
-			cryptosystem::EGCryptoSystem	-- The cryptosystem used by the 
-										   	   threshold scheme.
+			public_key::ThresholdPublicKey	-- The threshold public key used to 
+											   encrypt the ciphertext we seek 
+											   to decrypt.
 			ciphertext::Ciphertext	-- The encrypted ciphertext that this 
 									   combinator is set-up to decrypt.
 			num_trustees::int	-- Total number of trustees in the threshold 
@@ -191,12 +193,13 @@ class ThresholdDecryptionCombinator:
 		
 		# Check that the ciphertext and cryptosystem are (or appear to be)
 		# compatible
-		if(ciphertext.nbits != cryptosystem.get_nbits()):
+		if(ciphertext.nbits != public_key.cryptosystem.get_nbits()):
 			raise ValueError("Incompatible ciphertext and cryptosystem: " \
 							 "bit size mismatch.")
 		
-		self.cryptosystem = cryptosystem
-		self.ciphertext = ciphertext
+		self.public_key = public_key
+		self._ciphertext = ciphertext
+		self.cryptosystem = self.public_key.cryptosystem
 		self._num_trustees = num_trustees
 		self._threshold = threshold
 		# We initialize the array of trustee partial decryptions to None each
@@ -244,17 +247,42 @@ class ThresholdDecryptionCombinator:
 		
 		# Check that there's the right amount of partial decryption blocks.
 		num_pd_blocks = partial_decryption.get_length()
-		if(num_pd_blocks != self.ciphertext.get_length()):
+		if(num_pd_blocks != self._ciphertext.get_length()):
 			raise InvalidPartialDecryptionError("Invalid partial decryption " \
 				"for trustee %d: The number of blocks in the partial " \
 				"decryption (%d) does not match the number of blocks in the " \
 				"ciphertext (%d)." % \
-				(trustee, num_pd_blocks, self.ciphertext.get_length()))
+				(trustee, num_pd_blocks, self._ciphertext.get_length()))
+		
+		# Get the partial public key for the current trustee, that is:
+		# g^{P(j)} where j is the trustee's index.
+		ppub_key = 0
 		
 		# Verify the proofs of partial decryption for each partial decryption's 
 		# block. (This is far more reliable than doing a ciphertext/public_key 
 		# fingerprint check and can also detect maliciously forged partial 
 		# decryptions.)
+		for b_index in range(0, num_pd_blocks):
+		
+			# Get the partial decryption block
+			pd_block = partial_decryption[b_index]
+			
+			# Retrieve the values of the proof:
+			# a = g^{s} mod p
+			a = pd_block.proof.a
+			# b = gamma^{s} mod p
+			b = pd_block.proof.b
+			# t = s + 2P(j)*c mod p (P(j): trustee j's threshold private key)
+			t = pd_block.proof.t
+			
+			# Re-generate challenge c as SHA256(a, b, g^{P(j)}, block)
+			#sha256 =  Crypto.Hash.SHA256.new()
+			#sha256.update(hex(a))
+			#sha256.update(hex(b))
+			#sha256.update(hex(ppub_key)
+			#sha256.update(hex(pd_block.value))
+			#c = int(sha256.hexdigest(),16)
+			
 		
 		self._trustees_partial_decryptions[trustee - 1] = partial_decryption
 	
@@ -321,7 +349,7 @@ class ThresholdDecryptionCombinator:
 				_lagrange_coefficient(trustee_indexes, trustee, 0, q)
 		
 		# For each block of partial decryption/(gamma, delta) pair of ciphertext
-		for b_index in range(0, self.ciphertext.get_length()):
+		for b_index in range(0, self._ciphertext.get_length()):
 			
 			# Each partial decryption block is of the form g^{rP(i)}, where 
 			# (gamma, delta) = (g^r, m*g^{r2P(0)}).
@@ -343,7 +371,7 @@ class ThresholdDecryptionCombinator:
 			#
 			# See (TODO: Add reference) for the full explanation
 			
-			gamma, delta = self.ciphertext[b_index]
+			gamma, delta = self._ciphertext[b_index]
 			val = 1
 			for trustee in trustee_indexes:
 				p_decryption = self._trustees_partial_decryptions[trustee - 1]

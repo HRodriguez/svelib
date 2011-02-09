@@ -49,7 +49,7 @@ for i in range(1,6):
 	partial_decryptions[i - 1] = trustees[i - 1].threshold_private_key.generate_partial_decryption(ciphertext)
 
 # Do combined decryption
-combinator = ThresholdDecryptionCombinator(cs, ciphertext, 5, 3)
+combinator = ThresholdDecryptionCombinator(t_public_key, ciphertext, 5, 3)
 
 for i in range(1,4):
 	combinator.add_partial_decryption(i, partial_decryptions[i - 1])
