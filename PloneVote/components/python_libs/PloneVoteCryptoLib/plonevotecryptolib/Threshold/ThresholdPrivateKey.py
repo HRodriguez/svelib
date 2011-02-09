@@ -38,6 +38,10 @@
 
 import xml.dom.minidom
 
+# secure version of python's random:
+from Crypto.Random.random import StrongRandom
+import Crypto.Hash.SHA256	# sha256 is not available in python 2.4 standard lib
+
 from plonevotecryptolib.Threshold.ThresholdPublicKey import ThresholdPublicKey
 from plonevotecryptolib.Threshold.PartialDecryption import PartialDecryption
 from plonevotecryptolib.Threshold.PartialDecryption import PartialDecryptionBlock
@@ -134,7 +138,16 @@ class ThresholdPrivateKey:
 		
 		nbits = self.cryptosystem.get_nbits()
 		prime = self.cryptosystem.get_prime()
+		generator = self.cryptosystem.get_generator()
 		key = self._key
+		
+		# Remember that prime is of the form p = 2*q + 1, with q prime.
+		# (By construction, see EGCryptoSystem)
+		q = (prime - 1)/2
+		
+		# We will need a random number generator for the proofs of partial 
+		# decryption.
+		random = StrongRandom()
 		
 		# New empty partial decryption
 		partial_decryption = PartialDecryption(nbits)
@@ -156,11 +169,38 @@ class ThresholdPrivateKey:
 			# nbits block of original plaintext.
 			value = pow(gamma, key, prime)
 			
-			# TODO: Add proof != None
+			# Generate the partial decryption proof for the block as a
+			# Zero-Knowledge Discrete Logarithm Equality Test for 
+			# log_{g}(g^{2P(j)}) == log_{gamma}(block^2)
+			# (See PartialDecryptionBlockProof and [TODO: Add reference] for 
+			# more information.)
+			
+			# Select a random s in Z_{q}^{*}
+			s = random.randint(1, q - 1)
+			
+			# a = g^{s} mod p
+			a = pow(generator, s, prime)
+			
+			# b = gamma^{s} mod p
+			b = pow(gamma, s, prime)
+			
+			# c is SHA256(a, b, g^{2P(j)}, block^2) the challenge
+			sha256 =  Crypto.Hash.SHA256.new()
+			sha256.update(hex(a))
+			sha256.update(hex(b))
+			sha256.update(hex(pow(generator, 2*key, prime)))
+			sha256.update(hex(pow(value, 2, prime)))
+			c = int(sha256.hexdigest(),16)
+			
+			# t = s + 2P(j)*c mod p (P(j): trustee j's threshold private key)
+			t = (s + 2*key*c) % prime
+			
+			# Generate the PartialDecryptionBlockProof as (a, b, t)
+			proof = PartialDecryptionBlockProof(a, b, t)
 			
 			# Generate the block as (value, proof) and add it to the partial 
 			# decryption object.
-			block = PartialDecryptionBlock(value, None)
+			block = PartialDecryptionBlock(value, proof)
 			partial_decryption.add_partial_decryption_block(block)
 			
 			# Update task progress
