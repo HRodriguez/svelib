@@ -97,8 +97,9 @@ class Ciphertext:
 	An object representing encrypted PloneVote data.
 	
 	Ciphertext objects are created by PublicKey encrypt operations and 
-	decrypted through PrivateKey methods (or CombinedPublicKey if the data was 
-	encrypted with a combined key and all partial decryptions are available).
+	decrypted through PrivateKey decrypt methods (or through 
+	ThresholdDecryptionCombinator if the data was encrypted with a threshold 
+	public key and all partial decryptions are available).
 	
 	This class can also be store to and loaded from file using the PloneVote 
 	armored ciphertext XML format.
