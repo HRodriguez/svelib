@@ -6,7 +6,8 @@
 #
 #  CiphertextCollection.py : A class to represent a collection of ciphertexts.
 #
-#  This class is essentially a container for a list of Ciphertext objects. 
+#  This class is essentially a container for a list of Ciphertext objects 
+#  encrypted with the same public key. 
 #  Additionally, it implements the shuffle_with_proof() method, which provides 
 #  a verifiable shuffling of the ciphertext collection into a different 
 #  collection encapsulating the same plaintexts.
@@ -42,13 +43,19 @@ class CiphertextCollection:
 	An object representing an ordered collection of ciphertexts.
 	
 	This object allows storing an ordered collection of Ciphertext objects and 
-	provides indexing and iteration over said collection. 
+	provides indexing and iteration over said collection. All ciphertexts in 
+	the collection must have been encrypted with the same public key, so that 
+	they can be treated uniformly for shuffling.
 	
 	The shuffle_with_proof() method can be used to verifiably shuffle the 
 	ciphertext collection into a different collection encapsulating the same 
 	plaintexts.
 	
 	This class can be stored to and loaded to an XML file.
+	
+	Attributes:
+		public_key::PublicKey	-- The public key that was used to encrypt all 
+								   ciphertexts in the collection.
 	"""
 	
 	def get_size(self):
@@ -78,10 +85,14 @@ class CiphertextCollection:
 		"""
 		return self._ciphertexts.__iter__()
 	
-	def __init__(self):
+	def __init__(self, public_key):
 		"""
 		Constructs a new (empty) CiphertextCollection.
+		
+		Arguments:
+			(See class attributes)
 		"""
+		self.public_key = public_key
 		self._ciphertexts = []
 		
 	def add_ciphertext(self, ciphertext):
@@ -90,7 +101,21 @@ class CiphertextCollection:
 		
 		Arguments:
 			ciphertext::Ciphertext	-- The ciphertext to add.
+		
+		Throws:
+			IncompatibleCiphertextError	-- If the given ciphertext was not 
+										   encrypted with the public key for 
+										   this collection.
 		"""
+		# Check that the ciphertext was encrypted with the correct public key 
+		# for this collection.
+		if(ciphertext.pk_fingerprint != self.public_key.get_fingerprint()):
+			raise IncompatibleCiphertextError("The given ciphertext is " \
+				"incompatible with this collection and cannot be added: It " \
+				"was not encrypted with the public key declared for the " \
+				"collection.")
+		
+		# Add the ciphertext
 		self._ciphertexts.append(ciphertext)
 	
 	
