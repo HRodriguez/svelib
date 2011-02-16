@@ -93,6 +93,8 @@ class CiphertextCollection:
 			(See class attributes)
 		"""
 		self.public_key = public_key
+		# Cache the fingerprint to improve performance
+		self._pk_fingerprint = self.public_key.get_fingerprint()
 		self._ciphertexts = []
 		
 	def add_ciphertext(self, ciphertext):
@@ -109,7 +111,7 @@ class CiphertextCollection:
 		"""
 		# Check that the ciphertext was encrypted with the correct public key 
 		# for this collection.
-		if(ciphertext.pk_fingerprint != self.public_key.get_fingerprint()):
+		if(ciphertext.pk_fingerprint != self._pk_fingerprint):
 			raise IncompatibleCiphertextError("The given ciphertext is " \
 				"incompatible with this collection and cannot be added: It " \
 				"was not encrypted with the public key declared for the " \
