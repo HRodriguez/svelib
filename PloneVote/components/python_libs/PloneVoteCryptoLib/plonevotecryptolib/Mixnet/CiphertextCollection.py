@@ -37,41 +37,6 @@
 # THE SOFTWARE.
 # ============================================================================
 
-class CiphertextCollectionIterator:
-	"""
-	An iterator object for a CiphertextCollection.
-	
-	It returns each ciphertext in order.
-	
-	Attributes:
-		collection::CiphertextCollection	-- The collection through which  
-											   this iterator iterates.
-	"""
-	
-	def __init__(self, collection):
-		"""
-		Constructs a new iterator.
-		
-		Arguments:
-			collection::CiphertextCollection	-- the ciphertext collection 
-												   through which we wish to 
-												   iterate.
-		"""
-		self.collection = collection
-		self._pos = 0
-		self._max = collection.get_size()
-	
-	def next(self):
-		"""
-		Retrieve the next ciphertext.
-		"""
-		if(self._pos == self._max):
-			raise StopIteration
-		ciphertext = self.collection[self._pos]
-		self._pos += 1
-		return ciphertext
-
-
 class CiphertextCollection:
 	"""
 	An object representing an ordered collection of ciphertexts.
@@ -111,7 +76,7 @@ class CiphertextCollection:
 		"""
 		Return an iterator for the current ciphertext collection.
 		"""
-		return CiphertextCollectionIterator(self)
+		return self._ciphertexts.__iter__()
 	
 	def __init__(self):
 		"""
