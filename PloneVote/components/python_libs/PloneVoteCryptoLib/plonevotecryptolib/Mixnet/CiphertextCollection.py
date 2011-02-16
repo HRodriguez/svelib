@@ -106,6 +106,15 @@ class CiphertextCollection:
 		
 		return True
 	
+	def __ne__(self, other):
+		"""
+		Implements CiphertextCollection inequality.
+		
+		See __eq__(...) for the definition of CiphertextCollection equality, 
+		inequality its is negation.
+		"""
+		return not self.__eq__(other)
+	
 	def __init__(self, public_key):
 		"""
 		Constructs a new (empty) CiphertextCollection.

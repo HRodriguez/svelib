@@ -174,6 +174,15 @@ class Ciphertext:
 		
 		return True
 	
+	def __ne__(self, other):
+		"""
+		Implements Ciphertext inequality.
+		
+		See __eq__(...) for the definition of Ciphertext equality, 
+		inequality its is negation.
+		"""
+		return not self.__eq__(other)
+	
 	def __init__(self, nbits, public_key_fingerprint):
 		"""
 		Create an empty ciphertext object.
