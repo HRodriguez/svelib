@@ -58,7 +58,7 @@ class CiphertextCollection:
 								   ciphertexts in the collection.
 	"""
 	
-	def get_size(self):
+	def get_length(self):
 		"""
 		Returns the number of ciphertexts in the collection.
 		"""
@@ -84,6 +84,27 @@ class CiphertextCollection:
 		Return an iterator for the current ciphertext collection.
 		"""
 		return self._ciphertexts.__iter__()
+	
+	def __eq__(self, other):
+		"""
+		Implements CiphertextCollection equality.
+		
+		Two ciphertext collections are equal if they have the same number of 
+		elements and those elements are equal and in the same order. A 
+		CiphertextCollection object is not equal to any object of a different 
+		type.
+		"""
+		if(not isinstance(other, CiphertextCollection)):
+			return False
+		
+		if(other.get_length() != self.get_length()):
+			return False
+		
+		for i in range(0, self.get_length()):
+			if(other[i] != self[i]):
+				return False
+		
+		return True
 	
 	def __init__(self, public_key):
 		"""
