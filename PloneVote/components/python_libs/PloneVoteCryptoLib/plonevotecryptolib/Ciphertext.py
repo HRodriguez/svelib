@@ -112,7 +112,7 @@ class Ciphertext:
 								  then be compared with the result from 
 								  PublicKey.get_fingerprint() to check for 
 								  compatibility with a given key pair or 
-								  combined public key.
+								  threshold public key.
 		gamma::long[]
 		delta::long[]	-- :
 			This two attributes should only be accessed by key classes within 

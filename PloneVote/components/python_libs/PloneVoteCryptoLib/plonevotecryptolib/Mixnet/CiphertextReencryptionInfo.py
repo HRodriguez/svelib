@@ -44,6 +44,8 @@ from Crypto.Random.random import StrongRandom
 
 from plonevotecryptolib.Ciphertext import Ciphertext
 from plonevotecryptolib.PVCExceptions import IncompatibleCiphertextError
+from plonevotecryptolib.PVCExceptions import IncompatibleReencryptionInfoError
+
 
 class CiphertextReencryptionInfo:
 	"""
@@ -200,10 +202,9 @@ class CiphertextReencryptionInfo:
 				"from the one used to generate this re-encryption " \
 				"information object.")
 		
-		# Get nbits, p and g
+		# Get nbits and p
 		nbits = self.public_key.cryptosystem.get_nbits()
 		prime = self.public_key.cryptosystem.get_prime()
-		generator = self.public_key.cryptosystem.get_generator()
 		
 		# For each block of the ciphertext, apply the corresponding block of 
 		# re-encryption.
@@ -246,4 +247,84 @@ class CiphertextReencryptionInfo:
 			return False
 		
 		return (original_reencrypted == reencrypted_ciphertext)
+	
+	def subtract(self, other_reencryption):
+		"""
+		Subtracts another re-encryption from the current re-encryption.
+		
+		Subtraction of re-encryptions works block by block: if the ith block of 
+		the current re-encryption is (g^{r_1}, y^{r_1}), and the ith block of 
+		the other re-encryption given is (g^{r_2}, y^{r_2}), then the ith block 
+		of the subtraction is (g^{r_1 - r_2}, y^{r_1 - r_2}).
+		
+		Note that if we are given c1, a re-encryption of ciphertext c with 
+		re-encryption information R1, and c2 a re-encryption of c with 
+		re-encryption information R2, then R = R2.subtract(R1) is the 
+		re-encryption information for a valid (verifiable) re-encryption from 
+		c1 to c2.
+		
+		Re-encryption subtraction only works on re-encryptions created with 
+		the same public key.
+		
+		We define this as a new method instead of using operator overloading 
+		for (-), because the semantics of re-encryption information subtraction 
+		are not obvious.
+		
+		Arguments:
+			other_reencryption::CiphertextReencryptionInfo	--
+				A re-encryption information to object to subtract from this one.
+		
+		Returns:
+			result::CiphertextReencryptionInfo -- 
+				The subtraction of other_reencryption to this re-encryption 
+				information object, as defined in the explanation above.
+		
+		Throws:
+			IncompatibleReencryptionInfoError	-- 
+				If the re-encryptions are not compatible for subtraction. 
+				Either because they are of different length or they were 
+				created with a different public key.
+		"""
+		# Check length compatibility
+		if(other_reencryption.get_length() != self.get_length()):
+			raise IncompatibleReencryptionInfoError("The re-encryption " \
+				"information objects are incompatible: The two objects have " \
+				"different length. There are %d blocks of re-encryption " \
+				"information on the current object and %d blocks of " \
+				"re-encryption information in the object passed as a " \
+				"parameter." \
+				% (ciphertext.get_length(), self.get_length()))
+		
+		# Check key compatibility
+		pk_fingerprint_self = self.public_key.get_fingerprint()
+		pk_fingerprint_other = other_reencryption.public_key.get_fingerprint()
+		
+		if(pk_fingerprint_other != pk_fingerprint_self):
+			raise IncompatibleCiphertextError("The re-encryption " \
+				"information objects are incompatible: The two objects have " \
+				"were created with different public keys.")
+		
+		# Get nbits and p
+		nbits = self.public_key.cryptosystem.get_nbits()
+		prime = self.public_key.cryptosystem.get_prime()
+		
+		# Create a new empty re-encryption to hold the subtraction
+		result = CiphertextReencryptionInfo(self.public_key)
+		
+		# Perform the subtraction of self - other_reencryption block by block 
+		# and store it on result.
+		for i in range(0, self.get_length()):		 
+			 gr1, yr1 = self[i]						# g^{r_1} and y^{r_1}
+			 gr2, yr2 = other_reencryption[i]		# g^{r_2} and y^{r_2}
+			 
+			 # Remember that we can invert in Z_p by elevating to p - 2.
+			 inv_gr2 = pow(gr2, prime - 2, prime)	# (g^{r_2})^{-1} = g^{-r_2}
+			 inv_yr2 = pow(yr2, prime - 2, prime)	# (y^{r_2})^{-1} = y^{-r_2}
+			 
+			 gr = (gr1*inv_gr2) % prime				# g^{r_1 - r_2}
+			 yr = (yr1*inv_yr2) % prime				# y^{r_1 - r_2}
+			 
+			 result.add_block(gr, yr)
+			 
+		return result
 		
