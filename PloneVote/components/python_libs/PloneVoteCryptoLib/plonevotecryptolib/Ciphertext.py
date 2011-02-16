@@ -149,6 +149,31 @@ class Ciphertext:
 		"""
 		return CiphertextIterator(self)
 	
+	def __eq__(self, other):
+		"""
+		Implements Ciphertext equality.
+		
+		Two ciphertexts are equal if they have the same bit size, public key 
+		fingerprint and list of gamma and delta components. A ciphertext is not 
+		equal to any object of a different type.
+		"""
+		if(not isinstance(other, Ciphertext)):
+			return False
+		
+		if(other.nbits != self.nbits):
+			return False
+		
+		if(other.pk_fingerprint != self.pk_fingerprint):
+			return False
+		
+		if(other.gamma != self.gamma):
+			return False
+		
+		if(other.delta != self.delta):
+			return False
+		
+		return True
+	
 	def __init__(self, nbits, public_key_fingerprint):
 		"""
 		Create an empty ciphertext object.
