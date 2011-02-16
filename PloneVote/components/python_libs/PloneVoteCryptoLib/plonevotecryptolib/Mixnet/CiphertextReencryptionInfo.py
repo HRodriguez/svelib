@@ -51,6 +51,10 @@ class CiphertextReencryptionInfo:
 	"""
 	Stores the information used to re-encrypt a ciphertext into another.
 	
+	Using this class outside of PloneVoteCryptoLib is not recommended. Within 
+	plonevotecryptolib.Mixnet, only CiphertextCollection, Mixer and 
+	ShufflingProof should be used by most clients.
+	
 	This class stores a list of re-encryption coefficients (g^{r'}, y^{r'}), 
 	one for each block of ciphertext. Objects of this class are both indexable 
 	and iterable, and behave as a list of pairs (g^{r'}, y^{r'}) when accessed 
