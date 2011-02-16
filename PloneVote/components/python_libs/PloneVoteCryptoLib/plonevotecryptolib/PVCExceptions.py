@@ -217,7 +217,8 @@ class IncompatibleCiphertextError(ParameterError):
 
 class IncompatibleReencryptionInfoError(ParameterError):
 	"""
-	Signals an attempt to operate on incompatible CiphertextReencryptionInfo objects.
+	Signals an attempt to operate on incompatible CiphertextReencryptionInfo 
+	objects.
 
 	Attributes:
 		msg::string			-- explanation of the error
@@ -225,5 +226,19 @@ class IncompatibleReencryptionInfoError(ParameterError):
 
 	def __init__(self, msg):
 		"""Create a new IncompatibleReencryptionInfoError exception
+		"""
+		ParameterError.__init__(self, msg)
+
+
+class IncompatibleCiphertextCollectionError(ParameterError):
+	"""
+	Signals an attempt to operate on incompatible CiphertextCollection objects.
+
+	Attributes:
+		msg::string			-- explanation of the error
+	"""
+
+	def __init__(self, msg):
+		"""Create a new IncompatibleCiphertextCollectionError exception
 		"""
 		ParameterError.__init__(self, msg)
