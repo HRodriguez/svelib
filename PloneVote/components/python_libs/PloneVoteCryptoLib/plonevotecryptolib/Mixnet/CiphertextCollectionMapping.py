@@ -46,9 +46,15 @@
 # secure version of python's random:
 from Crypto.Random.random import StrongRandom
 
+# Use configuration parameters from params.py
+from plonevotecryptolib import params
+
 from plonevotecryptolib.Mixnet.CiphertextCollection import CiphertextCollection
 from plonevotecryptolib.Mixnet.CiphertextReencryptionInfo import CiphertextReencryptionInfo
+# Exceptions:
 from plonevotecryptolib.PVCExceptions import IncompatibleCiphertextCollectionError
+from plonevotecryptolib.PVCExceptions import IncompatibleReencryptionInfoError
+from plonevotecryptolib.PVCExceptions import IncompatibleCiphertextCollectionMappingError
 
 def _random_shuffle_in_place(strong_random, l):
 	"""
@@ -226,7 +232,7 @@ class CiphertextCollectionMapping:
 		ciphertexts = [None for i in range(0, length)]
 		
 		# For each ciphertext in the original collection
-		for i in range(0, collection.get_length()):
+		for i in range(0, length):
 			ciphertext = collection[i]
 			
 			# Re-encrypt the ciphertext with the corresponding re-encryption 
@@ -282,8 +288,8 @@ class CiphertextCollectionMapping:
 			original_collection::CiphertextCollection	--
 				The original collection of ciphertexts.
 			shuffled_collection::CiphertextCollection	--
-				Another collection for which we wish to know if it was obtained 
-				by applying this mapping to original_collection.
+				Another collection for which we wish to know if said collection 
+				was obtained by applying this mapping to original_collection.
 		
 		Returns:
 			result::bool	-- True if shuffled_collection can be obtained from 
@@ -300,5 +306,132 @@ class CiphertextCollectionMapping:
 	
 	def rebase(self, other_mapping):
 		"""
+		Performs a rebase operation between two mappings.
+		
+		(This method is intended for internal use within PloneVoteCryptoLib)
+		
+		Rebase is a special operation used to generate the Zero-Knowledge proof 
+		of shuffling. The effect of rebase is, given two different mappings 
+		from a single collection, produce a mapping between the results of 
+		those mappings. 
+		
+		Suppose that the current CiphertextCollectionMapping (ie. self) maps 
+		CiphertextCollection A into collection B. Then, other_mapping should 
+		also map collection A into a different collection C. 
+		self.rebase(other_mapping) would then return a mapping from collection 
+		C to collection B.
+		
+		Conceptually rebase as an operation over CiphertextCollectionMappings 
+		behaves as follows:
+			Rebase(A->B, A->C) = C->B
+			
+		Note that the order of the operators is important. self.rebase(other) 
+		is Rebase(self, other). We describe the result of this method as 
+		"the mapping self rebased on other_mapping". Which means that we 
+		changed the origin of the mapping self to be the destination of 
+		other_mapping.
+		
+		Arguments:
+			(implicitly) self::CiphertextCollectionMapping	-- 
+							An A->B ciphertext collection mapping.
+			other_mapping::CiphertextCollectionMapping	--
+							An A->C ciphertext collection mapping.
+		
+		Returns:
+			result::CiphertextCollectionMapping	--
+							The resulting C->B ciphertext collection mapping.
+							
+		Throws:
+			IncompatibleCiphertextCollectionMappingError	--
+				If the given mappings are incompatible for rebase (see Note). 
+		
+		Note:
+			In reality, two mappings are compatible for rebase if and only if 
+			they have the same origin collection (A). Since the mappings do not 
+			store all information about their origin collection, we can only 
+			really check that the origin collections of both mappings: have 
+			the same length, have corresponding elements of the same length and 
+			were encrypted with the same public key (up to fingerprint). This 
+			means that for some mappings A->B, D->C (A != D), this method will 
+			return an invalid result without raising an exception. This is to 
+			say, it will return a well-formed CiphertextCollectionMapping 
+			object m, but one which is not really a mapping from C to B 
+			(ie. m.verify(C,B) == false).
+			
+			This is not a problem for PloneVoteCryptoLib, since what matters for 
+			security is that seemingly valid mappings cannot be generated for 
+			collections that are not a shuffle one of the other. An invalid 
+			mapping of the form given above will never seem valid under verify.
 		"""
-		pass
+		
+		# Check that both mappings map collections of the same length
+		assert len(self._reencryptions) == len(self._reordering)
+		assert len(other_mapping._reencryptions) == len(other_mapping._reordering)
+		
+		if(len(self._reencryptions) != len(other_mapping._reencryptions)):
+			raise IncompatibleCiphertextCollectionMappingError( \
+				"The given ciphertext collection mappings are incompatible " \
+				"for rebase: The origin collections for each mapping have " \
+				"different length.")
+		
+		# If the previous check passed, then there's a unique length for all 
+		# involved collections and mappings.
+		length = len(self._reencryptions)
+		
+		# Create an empty mapping to store C->B
+		result = CiphertextCollectionMapping()
+		
+		# Initialize the reordering and reencryption arrays of the mapping to 
+		# empty ones of the correct length.
+		# (initialized to invalid values)
+		result._reordering = [-1 for i in range(0, length)]
+		result._reencryptions = [None for i in range(0, length)]
+		
+		# Calculate C->B element by element, in the order of the element's 
+		# index in A.
+		for i in range(0, length):
+			# i is the index of the element in A
+			
+			indB = self._reordering[i]	# indB is the index of the element in B
+			indC = other_mapping._reordering[i]	# index in C
+			
+			# So in C->B, indC goes to indB
+			result._reordering[indC] = indB
+			
+			# Now, we get the re-encryption from a \in A to b \in B
+			atob_reencryption = self._reencryptions[i]
+			
+			# and the corresponding one from a to c \in C
+			atoc_reencryption = other_mapping._reencryptions[i]
+			
+			# Generate the c-to-b re-encryption by subtracting a-to-c from 
+			# a-to-b.
+			try:
+				ctob_reencryption = atob_reencryption.subtract(atoc_reencryption)
+			except IncompatibleReencryptionInfoError, e:
+				raise IncompatibleCiphertextCollectionMappingError( \
+					"The given ciphertext collection mappings are incompatible"\
+					" for rebase. It is likely that the origin collection for "\
+					"each mapping is not the same. In particular, it would " \
+					"seem that the %dth element of the origin collection is " \
+					"incompatible between mappings. Inner exception message: " \
+					"%s" % (i, str(e)))
+			
+			# result._reencryption should be indexed by the ciphertext's index 
+			# in the origin collection (C)
+			result._reencryptions[indC] = ctob_reencryption
+		
+		# Do some resource intensive checks to ensure that result has the right 
+		# structure (only in debug mode)
+		if(params.DEBUG):
+			# Check that result._reordering contains all indexes between 0 and 
+			# its length exactly once.
+			temp_list = list(result._reordering)
+			temp_list.sort()
+			assert temp_list == [i for i in range(0, len(temp_list))]
+			# Check that None does not appear on result._reencryptions
+			assert result._reencryptions.count(None) == 0
+		
+		return result
+		
+		

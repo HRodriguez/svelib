@@ -242,3 +242,17 @@ class IncompatibleCiphertextCollectionError(ParameterError):
 		"""Create a new IncompatibleCiphertextCollectionError exception
 		"""
 		ParameterError.__init__(self, msg)
+		
+class IncompatibleCiphertextCollectionMappingError(ParameterError):
+	"""
+	Signals an attempt to operate on incompatible CiphertextCollectionMapping 
+	objects.
+
+	Attributes:
+		msg::string			-- explanation of the error
+	"""
+
+	def __init__(self, msg):
+		"""Create a new IncompatibleCiphertextCollectionMappingError exception
+		"""
+		ParameterError.__init__(self, msg)

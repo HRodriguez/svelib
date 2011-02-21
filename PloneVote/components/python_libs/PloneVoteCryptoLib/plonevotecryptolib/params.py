@@ -34,7 +34,7 @@
 # ===================================================================
 # Imports, skip this section to "Basic parameters"
 # ===================================================================
-from utilities.Enumerate import Enumerate
+from plonevotecryptolib.utilities.Enumerate import Enumerate
 
 
 # ===================================================================

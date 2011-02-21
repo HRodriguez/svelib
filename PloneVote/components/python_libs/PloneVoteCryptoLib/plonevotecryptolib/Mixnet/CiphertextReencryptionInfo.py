@@ -297,7 +297,7 @@ class CiphertextReencryptionInfo:
 				"information on the current object and %d blocks of " \
 				"re-encryption information in the object passed as a " \
 				"parameter." \
-				% (ciphertext.get_length(), self.get_length()))
+				% (self.get_length(), other_reencryption.get_length()))
 		
 		# Check key compatibility
 		pk_fingerprint_self = self.public_key.get_fingerprint()
