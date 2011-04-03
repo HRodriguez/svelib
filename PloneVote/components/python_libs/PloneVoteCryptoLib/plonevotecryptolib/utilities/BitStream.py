@@ -476,7 +476,8 @@ class BitStream:
 			while(to_copy >= step_size):
 				self.put_num(bitstream.get_num(step_size), step_size)
 				to_copy -= step_size
-	
+
+
 	def put_bit_dump_string(self, bit_dump_str):
 		"""
 		Put the given bits into the BitStream.
@@ -512,4 +513,39 @@ class BitStream:
 							"\'0\'s and \'1\'s, since it passed the earlier " \
 							"check. This line should be unreachable."
 				
+	
+	def get_bit_dump_string(self, bit_length):
+		"""
+		Retrieve the given amount of data from the BitStream, as a string of 
+		0's and 1's.
 		
+		NOTE: This method is intended for testing and debugging and is likely 
+		to be very inefficient compared to using get_byte or get_num, for 
+		example.
+		
+		Arguments:
+			bit_length::int	-- The number of bits we wish to pull from the 
+							   stream.
+		
+		Returns:
+			bit_dump_str::string  -- a string representing a sequence of bits.
+								(must only contain the characters '0' and '1')
+								This should be the next bit_length bits stored 
+								in the BitStream from the current position.
+		"""
+		if(bit_length > (self.get_length() - self.get_current_pos())):
+			raise NotEnoughBitsInStreamError("Not enough bits in the bitstream.")
+		
+		# Read bit by bit and construct the string.
+		bit_dump_str = ""
+		for i in range(0, bit_length):
+			bit = self.get_num(1)
+			if(bit == 0):
+				bit_dump_str += "0"
+			elif(bit == 1):
+				bit_dump_str += "1"
+			else:
+				assert False, "A 1-bit long number must be 0 or 1. " \
+							"This line should be unreachable."
+		
+		return bit_dump_str
