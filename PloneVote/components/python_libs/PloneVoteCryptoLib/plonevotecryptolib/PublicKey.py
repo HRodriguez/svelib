@@ -77,6 +77,10 @@ class PublicKey:
 		This fingerprint should be stored with any text encrypted with this 
 		public key, in order to facilitate checking compatibility with a 
 		particular key pair for future decryption or manipulation.
+		
+		Returns:
+			fingerprint::string -- A SHA256 hexdigest providing a fingerprint 
+								   of the current public key.
 		"""
 		fingerprint = Crypto.Hash.SHA256.new()
 		fingerprint.update(hex(self.cryptosystem.get_nbits()))

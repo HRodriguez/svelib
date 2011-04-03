@@ -477,3 +477,39 @@ class BitStream:
 				self.put_num(bitstream.get_num(step_size), step_size)
 				to_copy -= step_size
 	
+	def put_bit_dump_string(self, bit_dump_str):
+		"""
+		Put the given bits into the BitStream.
+		
+		NOTE: This method is intended for testing and debugging and is likely 
+		to be very inefficient compared to using put_byte or put_num, for 
+		example.
+		
+		This method receives a string representing a sequence of bits 
+		(ie. "0010110001") and inserts those bits into the BitStream at the 
+		current position.
+		
+		Arguments:
+			bit_dump_str::string  -- a string representing a sequence of bits.
+								(must only contain the characters '0' and '1')
+		"""
+		# We first check that the string represents a valid sequence of bits
+		for char in bit_dump_str:
+			if(char not in ('0','1')):
+				 raise ValueError("The string given to put_bit_dump_string " \
+								"must represent a sequence of 0's and 1's. " \
+								"Invalid character \'%s\' encountered while " \
+								"reading from string." % char)
+		
+		# Only then we insert it into the bit stream, one bit at a time
+		for char in bit_dump_str:
+			if(char == '0'):
+				self.put_num(0, 1)
+			elif(char == '1'):
+				self.put_num(1, 1)
+			else:
+				assert False, "The string should be a valid sequence of " \
+							"\'0\'s and \'1\'s, since it passed the earlier " \
+							"check. This line should be unreachable."
+				
+		

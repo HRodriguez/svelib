@@ -34,3 +34,7 @@ bit_length = 4*8*100
 bs.put_num(num, bit_length)
 
 print [hex(c)[2:-1] for c in bs._cells]
+
+Potential security issue:
+	- Are votes with a fully 0'ed block in their plaintext detectable across re-encryptions?
+	- Consider adding 1 to each block upon encryption and subtracting 1 on decryption (should work, since a block size is (nbits-1), encrypted block size is nbits, and we can encrypt any m < p)

@@ -6,7 +6,7 @@
 #
 #  CiphertextCollectionMapping.py :
 #
-#  This file also provides CiphertextCollectionMapping, a class for storing the 
+#  This file provides CiphertextCollectionMapping, a class for storing the 
 #  explicit mapping between two CiphertextCollection objects, giving the 
 #  re-ordering and re-encryption of the ciphertexts. Given two 
 #  CiphertextCollection objects and their corresponding 
@@ -78,8 +78,8 @@ class CiphertextCollectionMapping:
 	Stores the explicit mapping between two CiphertextCollection objects.
 	
 	Using this class outside of PloneVoteCryptoLib is not recommended. Within 
-	plonevotecryptolib.Mixnet, only CiphertextCollection, Mixer and 
-	ShufflingProof should be used by most clients.
+	plonevotecryptolib.Mixnet, only CiphertextCollection and ShufflingProof 
+	should be used by most clients.
 	
 	This class contains both the re-ordering and re-encryption information 
 	mapping a particular collection of ciphertexts into another shuffled 
