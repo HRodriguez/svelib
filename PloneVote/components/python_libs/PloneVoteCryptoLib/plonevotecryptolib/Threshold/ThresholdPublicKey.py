@@ -128,7 +128,7 @@ class ThresholdPublicKey(PublicKey):
 	
 	# Check if overriding a _method is O.K., as well as using _key directly.
 	# (This two clases are expected to be kept coupled and in the same library, 
-	# so it's not as if the API can chance by surprise under our feet)	
+	# so it's not as if the API can change by surprise under our feet)	
 	def _to_xml(self):
 		"""
 		Returns an xml document containing a representation of this public key.

@@ -60,7 +60,7 @@ class ThresholdPrivateKey:
 	PrivateKey (which is why this class is not a subclass of PrivateKey).
 	
 	Note that multiple threshold private keys are associated with each 
-	threshold public key, one for each trustee. This again in constrast with 
+	threshold public key, one for each trustee. This again in contrast with 
 	simple private/public keys which are paired.
 	
 	Attributes:
@@ -160,8 +160,8 @@ class ThresholdPrivateKey:
 				task_monitor.new_subtask("Generate partial decryption", 
 										 expected_ticks = ticks)
 		
-		# For each gamma component in the ciphertext, generate one partial 
-		# decryption block (with proof):
+		# For each (gamma,delta) component in the ciphertext, generate one  
+		# partial decryption block (with proof):
 		for gamma, delta in ciphertext:
 		
 			# To calculate the value of the block, elevate gamma to the 
@@ -184,7 +184,7 @@ class ThresholdPrivateKey:
 			# b = gamma^{s} mod p
 			b = pow(gamma, s, prime)
 			
-			# c is SHA256(a, b, g^{2*P(j)}, block) the challenge
+			# c is SHA256(a, b, g^{2*P(j)}, block.value) the challenge
 			# (We must use g^{2*P(j)} and not g^{P(j)}, because the first is 
 			# considered as the partial public key of trustee j and the value 
 			# of the later is unavailable at decryption combination time).
@@ -254,4 +254,6 @@ class ThresholdPrivateKey:
 		"""
 		Loads a threshold private key from file.
 		"""
+		# TODO: Implement
+		assert False, "Method not implemented"
 		pass

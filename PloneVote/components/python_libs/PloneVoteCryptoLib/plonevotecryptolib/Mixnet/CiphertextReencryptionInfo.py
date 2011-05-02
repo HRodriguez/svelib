@@ -81,6 +81,7 @@ class CiphertextReencryptionInfo:
 	
 	# NOTE: Would just storing r' per block instead of (g^{r'}, y^{r'})  
 	# be secure?
+	# The answer seems to be yes, consider refactoring
 	
 	def get_length(self):
 		"""

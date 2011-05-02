@@ -38,3 +38,14 @@ print [hex(c)[2:-1] for c in bs._cells]
 Potential security issue:
 	- Are votes with a fully 0'ed block in their plaintext detectable across re-encryptions?
 	- Consider adding 1 to each block upon encryption and subtracting 1 on decryption (should work, since a block size is (nbits-1), encrypted block size is nbits, and we can encrypt any m < p)
+	
+IMPORTANT: ThresholdPublicKey.py
+	#TODO: Load partial public keys from the xml
+
+TODO:
+	- Incorporate the 2 to the threshold private keys, as in the description on the thesis
+	- Consider the attack of [Pfi94]
+			Birgit Pfitzmann. Breaking efficient anonymous channel. In Lecture
+			Notes in Computer Science Springer Berlin/Heidelberg, pages 332-340
+	- TaskMonitor support for plonevotecryptolib.Mixnet classes and methods!
+

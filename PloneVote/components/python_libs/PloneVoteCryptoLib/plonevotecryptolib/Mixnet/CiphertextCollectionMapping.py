@@ -96,7 +96,7 @@ class CiphertextCollectionMapping:
 	CiphertextCollectionMapping reveals the mapping from each ciphertext of one 
 	collection to another unique ciphertext in the second.
 	
-	(See [TODO: Add reference] for more infomation).
+	(See [TODO: Add reference] for more information).
 	"""
 	
 	## SOME NOTES ON THE INTERNALS OF THIS MAPPING:
@@ -311,7 +311,7 @@ class CiphertextCollectionMapping:
 		(This method is intended for internal use within PloneVoteCryptoLib)
 		
 		Rebase is a special operation used to generate the Zero-Knowledge proof 
-		of shuffling. The effect of rebase is, given two different mappings 
+		of shuffling. The effect of rebase is to, given two different mappings 
 		from a single collection, produce a mapping between the results of 
 		those mappings. 
 		
