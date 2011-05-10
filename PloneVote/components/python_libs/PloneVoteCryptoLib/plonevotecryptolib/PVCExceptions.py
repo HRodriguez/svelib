@@ -270,3 +270,16 @@ class InvalidCiphertextCollectionMappingError(ParameterError):
 		"""Create a new InvalidCiphertextCollectionMappingError exception
 		"""
 		ParameterError.__init__(self, msg)
+		
+class InvalidShuffilingProofError(ParameterError):
+	"""
+	Signals the use of an invalid ShuffilingProof object.
+
+	Attributes:
+		msg::string			-- explanation of the error
+	"""
+
+	def __init__(self, msg):
+		"""Create a new InvalidShuffilingProofError exception
+		"""
+		ParameterError.__init__(self, msg)
