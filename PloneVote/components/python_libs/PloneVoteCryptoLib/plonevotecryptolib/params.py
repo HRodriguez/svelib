@@ -85,6 +85,11 @@ CUSTOM_MINIMUM_KEY_SIZE = None
 # If None, false prime probability will be selected based on SECURITY_LEVEL
 CUSTOM_FALSE_PRIME_PROBABILITY = None
 
+# The integer security parameter used by the shuffling/mixing proof.
+# (see ShufflingProof comments)
+# If None, the security parameter will be selected based on SECURITY_LEVEL
+CUSTOM_SHUFFLING_PROOF_SECURITY_PARAMETER = None
+
 
 # ===================================================================
 # Generated parameters
@@ -141,7 +146,7 @@ else:
 
 # Used when a pre-generated cryptosystem is loaded
 # Much lower than FALSE_PRIME_PROBABILITY for performance reasons, but still 
-# high enough to detect most accidental corruptions or surepticious alterations 
+# high enough to detect most accidental corruptions or surreptitious alterations 
 # of cryptosystem or key files.
 FALSE_PRIME_PROBABILITY_ON_VERIFICATION = {
 						SECURITY_LEVELS_ENUM.INSECURE : 1, #No verification
@@ -152,5 +157,17 @@ FALSE_PRIME_PROBABILITY_ON_VERIFICATION = {
 						SECURITY_LEVELS_ENUM.HIGHEST : 1e-6,
 						SECURITY_LEVELS_ENUM.OVERKILL : 2**(-256),
 						}[SECURITY_LEVEL]
-			
+
+if(CUSTOM_SHUFFLING_PROOF_SECURITY_PARAMETER != None):
+	SHUFFLING_PROOF_SECURITY_PARAMETER = CUSTOM_SHUFFLING_PROOF_SECURITY_PARAMETER
+else:
+	SHUFFLING_PROOF_SECURITY_PARAMETER = {
+						SECURITY_LEVELS_ENUM.INSECURE : 32,
+						SECURITY_LEVELS_ENUM.LOWEST : 100,
+						SECURITY_LEVELS_ENUM.LOW : 100,
+						SECURITY_LEVELS_ENUM.NORMAL : 128,
+						SECURITY_LEVELS_ENUM.HIGH : 160,
+						SECURITY_LEVELS_ENUM.HIGHEST : 200,
+						SECURITY_LEVELS_ENUM.OVERKILL : 256,
+						}[SECURITY_LEVEL]
 
