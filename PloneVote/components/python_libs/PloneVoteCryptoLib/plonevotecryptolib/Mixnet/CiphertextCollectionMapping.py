@@ -8,8 +8,9 @@
 #
 #  This file provides CiphertextCollectionMapping, a class for storing the 
 #  explicit mapping between two CiphertextCollection objects, giving the 
-#  re-ordering and re-encryption of the ciphertexts. Given two 
-#  CiphertextCollection objects and their corresponding 
+#  re-ordering and re-encryption of the ciphertexts.
+#
+#  Given two CiphertextCollection objects and their corresponding 
 #  CiphertextCollectionMapping, it can be verified that both collections 
 #  contain re-encryptions of the same collection of plaintexts (including 
 #  repetitions of the same plaintext). This verification is not in 
@@ -415,7 +416,7 @@ class CiphertextCollectionMapping:
 					"each mapping is not the same. In particular, it would " \
 					"seem that the %dth element of the origin collection is " \
 					"incompatible between mappings. Inner exception message: " \
-					"%s" % (i, str(e)))
+					"\"%s\"" % (i, str(e)))
 			
 			# result._reencryption should be indexed by the ciphertext's index 
 			# in the origin collection (C)

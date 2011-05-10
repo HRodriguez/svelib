@@ -172,6 +172,7 @@ class CiphertextReencryptionInfo:
 			reencryption_info.add_block(gr, yr)
 		
 		assert (reencryption_info.get_length() == length)
+		
 		return reencryption_info
 		
 	def apply(self, ciphertext):
