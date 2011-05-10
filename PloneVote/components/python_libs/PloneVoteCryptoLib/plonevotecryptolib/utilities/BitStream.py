@@ -47,6 +47,17 @@ _base64_encoding_table = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', \
 _base64_decoding_table = {}
 for i in range(0,64):
 	_base64_decoding_table[_base64_encoding_table[i]] = i
+	
+# The mapping from four bit binary numbers to their corresponding hexadecimal 
+# representation character.
+_hex_encoding_table = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', \
+	'b', 'c', 'd', 'e', 'f']
+
+_hex_decoding_table = {}
+for i in range(0,16):
+	_hex_decoding_table[_hex_encoding_table[i]] = i
+	if(i > 9):
+		_hex_decoding_table[_hex_encoding_table[i].upper()] = i
 
 
 class NotEnoughBitsInStreamError(Exception):
@@ -457,7 +468,57 @@ class BitStream:
 			base64_data += "="
 			
 		return base64_data
-				
+		
+	
+	def put_hex(self, hex_data):
+		"""
+		Put the given string into the BitStream, interpreted as a hexadecimal 
+		number.
+		
+		The hexadecimal string must contain only characters within '0'-'9', 
+		'a'-'f' and 'A'-'F'. Our treatment of the string is case insensitive.
+		
+		Arguments:
+			hex_data::string	-- A hexadecimal number encoded as an string.
+		"""
+		# Decode and insert a character at a time.
+		for char in hex_data:
+			try:
+				val = _hex_decoding_table[char]
+			except KeyError:
+				raise ValueError("The given string does not represent a valid "\
+							  "hexadecimal number. Character \'%s\' is not a " \
+							  "valid base-16 digit." % char)
+			
+			self.put_num(val, 4)
+			
+			
+	def get_hex(self, bit_length):
+		"""
+		Retrieve the given amount of data from the BitStream, as a string 
+		representing a hexadecimal number.
+		
+		Arguments:
+			bit_length::int	-- The amount of data to return as a hexadecimal 
+							   number, in bits. Must be a multiple of 4.
+			
+		Returns:
+			hex_str::string	-- The next bit_length bits in the stream, as a  
+							   string representing a hexadecimal number.
+		"""
+		if(bit_length > (self.get_length() - self.get_current_pos())):
+			raise NotEnoughBitsInStreamError("Not enough bits in the bitstream.")
+			
+		if(bit_length % 4 != 0):
+			raise ValueError("The number of bits to be retrieved as a " \
+							 "hexadecimal number must be a multiple of 4.")	
+							 
+		hex_str = ""
+		for i in range(0, bit_length / 4):
+			hex_str += _hex_encoding_table[self.get_num(4)]
+			
+		return hex_str
+			
 
 	def put_bitstream_copy(self, bitstream):
 		"""
