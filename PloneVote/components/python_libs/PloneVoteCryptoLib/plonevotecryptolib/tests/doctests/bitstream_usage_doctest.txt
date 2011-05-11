@@ -1,0 +1,68 @@
+-------------------------------------------------------------------------------
+HEADER:
+-------------------------------------------------------------------------------
+Tested in this file: BitStream: A class representing a sequence of bits.
+	Classes: 
+		plonevotecryptolib.utilities.BitStream
+	Files: 
+		plonevotecryptolib/utilities/BitStream.py
+		
+-------------------------------------------------------------------------------
+DESCRIPTION:
+-------------------------------------------------------------------------------
+
+BitStream is a powerful utility class that allows us to represent binary or 
+textual data uniformly at the bit granularity. 
+
+One can think of a BitStream object as a finite sequence of bits, together with 
+a current position marker. As in the following representation:
+
+	0100101010100010001001000011110010101001010101010111
+	    ^ (current_pos == 4)
+
+The BitStream class provides methods for both inserting and retrieving data 
+from the stream of bits. Since BitStream knows nothing about the format of 
+the data it contains (it treats it only as an uniform sequence of bits, without 
+format markers or delimiters of any kind), the client must take care of 
+indicating how many bits to retrieve, from where in the stream, and what kind 
+of data those bits represent. To make this task easier, BitStream provides 
+different methods for inserting and retrieving different types of data from the 
+stream (ie. retrieving the next X bits as an integer or as an UTF-8 string).
+
+Internally, BitStream uses cell based storage that should be considerable more 
+space efficient than using a python array with elements in [0,1].
+
+-------------------------------------------------------------------------------
+BYTES AND INTEGERS
+-------------------------------------------------------------------------------
+
+We import the BitStream utility and related exceptions:
+
+	>>> from plonevotecryptolib.utilities.BitStream import BitStream
+	>>> from plonevotecryptolib.utilities.BitStream import NotEnoughBitsInStreamError
+
+Now, lets create a new BitStream and add a few bytes to it. We can use the 
+put_byte() method to insert a byte into the stream at the current position, 
+which is, of course, advanced after every insertion:
+
+	>>> bitstream = BitStream()
+	>>> bytes = [ 12,	# 0000 1100
+	... 	222,		# 1101 1110
+	... 	145,		# 1001 0001
+	... 	42,			# 0010 1010
+	... 	0,			# 0000 0000
+	... 	255]		# 1111 1111
+	>>> for byte in bytes:
+	... 	bitstream.put_byte(byte)
+	...
+
+The get_length() method returns the full length of the BitStream in bits:
+	
+	>>> bitstream.get_length() == len(bytes)*8
+	True
+	>>> bitstream.get_length()	# specifically:
+	48
+
+
+
+
