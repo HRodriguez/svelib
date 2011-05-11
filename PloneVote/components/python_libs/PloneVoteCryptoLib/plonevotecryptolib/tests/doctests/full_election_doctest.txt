@@ -304,6 +304,11 @@ initially captured by the server. Each voter votes through a web client that
 executes entirely on a machine controlled by said voter. This client encrypts 
 their vote and returns a voting receipt: a fingerprint of the encrypted vote.
 
+We need somewhere in the server to store the votes, so we instantiate an 
+empty initial vote collection.
+
+	>>> election.vote_collections.append([])
+
 We instantiate a few dummy voters, each with a dummy vote to cast (in 
 plaintext). In the real system, this plaintext is never stored and each voter 
 just inputs their preferences on the web client, which encrypts the vote as 
@@ -318,4 +323,23 @@ soon as those preferences have been fully given.
 	
 Each voter uses the web client to: download the threshold public key for the 
 current election from the server, encrypt their vote and generate a vote 
-receipt (as a SHA-256 hash of the encrypted vote, block by block).
+receipt (as a SHA-256 hash of the encrypted vote, block by block). Finally, the 
+voter cast her vote to the server.
+
+Note: In the final system, the voter will be required to authenticate and be 
+	authorized to vote in the current election in order for her vote to be 
+	captured.
+
+	>>> for i in range(0,20):
+	... 	t_pub_key = election.threshold_pub_key
+	... 	encrypted_vote = t_pub_key.encrypt(voters[i].vote)
+	... 	voter[i].receipt = encrypted_vote.get_fingerprint()
+	... 	election.vote_collections[0].append(encrypted_vote)
+	...
+
+After the time alloted for the Voting Phase concludes, the server should 
+automatically transfer to the Counting Phase.
+
+-------------------------------------------------------------------------------
+COUNTING PHASE
+-------------------------------------------------------------------------------

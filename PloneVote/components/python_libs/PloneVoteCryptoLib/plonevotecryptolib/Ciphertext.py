@@ -55,6 +55,8 @@
 ##
 import xml.dom.minidom
 
+import Crypto.Hash.SHA256	# sha256 is not available in python 2.4 standard lib
+
 from plonevotecryptolib.utilities.BitStream import BitStream
 
 class CiphertextIterator:
@@ -182,6 +184,23 @@ class Ciphertext:
 		inequality its is negation.
 		"""
 		return not self.__eq__(other)
+	
+	def get_fingerprint(self):
+		"""
+		Gets a fingerprint of the current ciphertext.
+		
+		A ciphertext fingerprint is generated as a SHA-256 hash of the 
+		ciphertext, block by block.
+		
+		Returns:
+			fingerprint::string -- A SHA-256 hexdigest providing a fingerprint 
+								   of the current ciphertext.
+		"""
+		fingerprint = Crypto.Hash.SHA256.new()
+		for (gamma, delta) in self:
+			fingerprint.update(hex(gamma))
+			fingerprint.update(hex(delta))
+		return fingerprint.hexdigest()
 	
 	def __init__(self, nbits, public_key_fingerprint):
 		"""
