@@ -229,9 +229,10 @@ class ThresholdDecryptionCombinator:
 					incorrect for a partial decryption block and thus the 
 					partial decryption cannot be verified to be correct.
 		"""
-		if(not (1 <= trustee <= self._num_trustees)):
+		if(not (0 <= trustee < self._num_trustees)):
 			raise ValueError("Invalid trustee. The threshold scheme trustees " \
-							"must be indexed from 1 to %d" % self._num_trustees)
+							"must be indexed from 0 to %d" \
+							% (self._num_trustees - 1))
 		
 		# Get a few parameters we might need for partial decryption verification
 		nbits = self.cryptosystem.get_nbits()
@@ -257,7 +258,7 @@ class ThresholdDecryptionCombinator:
 				(trustee, num_pd_blocks, self._ciphertext.get_length()))
 		
 		# Get the partial public key for the current trustee, that is:
-		# g^{2P(j)} where j is the trustee's index.
+		# g^{2P(j)} where j is the trustee's (1 based) index.
 		#
 		# IMPORTANT: We are saving the partial public keys for trustees as 
 		# g^{2P(j)}, while we save the private keys as P(j), we adjust for that 
@@ -321,7 +322,7 @@ class ThresholdDecryptionCombinator:
 					 % (trustee, b_index))
 			
 		
-		self._trustees_partial_decryptions[trustee - 1] = partial_decryption
+		self._trustees_partial_decryptions[trustee] = partial_decryption
 	
 	def decrypt_to_bitstream(self, task_monitor=None):
 		"""
@@ -344,7 +345,7 @@ class ThresholdDecryptionCombinator:
 									object to perform combined decryption.
 		"""
 		# Get the indexes of all trustees for which we have a registered
-		# partial decryption
+		# partial decryption. We use 1 based indexes here.
 		trustee_indexes = []
 		for trustee in range(1, self._num_trustees + 1):
 			decryption = self._trustees_partial_decryptions[trustee - 1]

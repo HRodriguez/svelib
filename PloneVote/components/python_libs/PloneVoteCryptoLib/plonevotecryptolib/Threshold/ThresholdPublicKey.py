@@ -87,7 +87,7 @@ class ThresholdPublicKey(PublicKey):
 			trustee::int	-- The number of the trustee for which we wish to 
 							   obtain the partial public key.
 		"""
-		return self._partial_public_keys[trustee - 1]
+		return self._partial_public_keys[trustee]
 	
 	def __init__(self, cryptosystem, num_trustees, threshold, 
 				 public_key_value, verification_partial_public_keys):
