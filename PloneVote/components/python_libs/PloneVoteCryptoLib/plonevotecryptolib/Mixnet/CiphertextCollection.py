@@ -63,6 +63,7 @@ class CiphertextCollection:
 		Returns the number of ciphertexts in the collection.
 		"""
 		return len(self._ciphertexts)
+	
 		
 	def __getitem__(self, i):
 		"""
@@ -79,11 +80,13 @@ class CiphertextCollection:
 		
 		return self._ciphertexts[i]
 	
+	
 	def __iter__(self):
 		"""
 		Return an iterator for the current ciphertext collection.
 		"""
 		return self._ciphertexts.__iter__()
+	
 	
 	def __eq__(self, other):
 		"""
@@ -106,6 +109,7 @@ class CiphertextCollection:
 		
 		return True
 	
+	
 	def __ne__(self, other):
 		"""
 		Implements CiphertextCollection inequality.
@@ -114,6 +118,7 @@ class CiphertextCollection:
 		inequality its is negation.
 		"""
 		return not self.__eq__(other)
+	
 	
 	def __init__(self, public_key):
 		"""
@@ -126,6 +131,7 @@ class CiphertextCollection:
 		# Cache the fingerprint to improve performance
 		self._pk_fingerprint = self.public_key.get_fingerprint()
 		self._ciphertexts = []
+	
 		
 	def add_ciphertext(self, ciphertext):
 		"""
@@ -151,4 +157,84 @@ class CiphertextCollection:
 		self._ciphertexts.append(ciphertext)
 	
 	
+	def shuffle_with_proof(self):
+		"""
+		Produce a verifiable shuffle of this ciphertext collection.
+		
+		This method returns a tuple containing a new CiphertextCollection 
+		object, which encodes the same plaintexts as the current collection 
+		but reencrypted and randomly permuted, and a zero-knowledge proof of 
+		shuffling.
+		
+		The proof of shuffling can be used (via the ShuffleProof.verify(...) 
+		method) to check that both collections contain encryptions of the same 
+		set of plaintexts, under the same cryptosystem and public key. On the 
+		other hand, neither the collections nor the proof give any information 
+		regarding which ciphertext in the first collection corresponds to which 
+		ciphertext in the second, shuffled, collection (hence why we say the 
+		proof is done in zero-knowledge).
+		
+		(see Josh Benaloh, "Simple Verifiable Elections", 
+		http://www.usenix.org/event/evt06/tech/full_papers/benaloh/benaloh.pdf 
+		for more information.)
+		
+		Returns:
+			(shuffled_collection, proof)::
+				(CiphertextCollection, ShufflingProof)
+				--
+				
+					shuffled_collection is a shuffled version of the current 
+				collection, containing different ciphertexts but encoding the 
+				same plaintexts as the current collection (in different order).
+				
+					proof is a zero-knowledge proof asserting that the current 
+				collection and shuffled_collection are the equivalent 
+				(that is, contain representations of the same plaintext in 
+				equal numbers). This proof can be verified through the 
+				verify(...) method of ShuffleProof itself.
+		
+		Throws:
+			ValueError --
+				If params.SHUFFLING_PROOF_SECURITY_PARAMETER is within an 
+				invalid range.
+		"""
+		# Import CiphertextCollectionMapping and ShufflingProof
+		
+		## Note:
+		# 	python has some well known issues with circular imports 
+		#	(see http://effbot.org/zone/import-confusion.htm) so putting this 
+		#	import statements at the top of our module in the usual way 
+		#	will not work. 
+		#
+		#	Besides, CiphertextCollection as a class is conceptually at a lower 
+		#	layer of our architecture than both these other classes. Only this 
+		#	convenience method, designed to make the API easier to use from 
+		#	outside of plonevotecryptolib, depends on those classes. So it 
+		#	actually makes more sense to import these classes within this 
+		#	method only.
+		##
+		from plonevotecryptolib.Mixnet.CiphertextCollectionMapping import CiphertextCollectionMapping
+		from plonevotecryptolib.Mixnet.ShufflingProof import ShufflingProof
+		
+		# Create a mapping from the current collection into a random shuffling
+		mapping = CiphertextCollectionMapping.new(self)
+		
+		# Apply the mapping to obtain the resulting shuffled collection
+		try:
+			shuffled_collection = mapping.apply(self)
+		except IncompatibleCiphertextCollectionError:
+			assert False, "IncompatibleCiphertextCollectionError may not be " \
+						"raised when applying a mapping M created using " \
+						"CiphertextCollectionMapping.new(C) to the same C."
+		
+		# Generate the zero-knowledge proof of shuffling
+		try:
+			proof = ShufflingProof.new(self, shuffled_collection, mapping)
+		except InvalidCiphertextCollectionMappingError:
+			assert False, "InvalidCiphertextCollectionMappingError may not be " \
+						"raised when shuffled_collection was created from the " \
+						"original collection (self) by applying the mapping."
+		
+		# Form tuple and return it
+		return (shuffled_collection, proof)
 	
