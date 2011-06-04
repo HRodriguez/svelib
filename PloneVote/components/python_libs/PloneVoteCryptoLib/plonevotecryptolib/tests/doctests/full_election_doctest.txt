@@ -2,15 +2,37 @@
 HEADER:
 -------------------------------------------------------------------------------
 Tested in this file: 
-	The election security protocol implemented in plonevotecryptolib.
-	
-	Modules: 
-		plonevotecryptolib.EGCryptoSystem
-		plonevotecryptolib.Threshold.ThresholdEncryptionSetUp
-	Files: 
-		plonevotecryptolib/EGCryptoSystem.py
-		plonevotecryptolib/Threshold/ThresholdEncryptionSetUp.py
-		
+    The election security protocol implemented in plonevotecryptolib.
+    
+    Modules: 
+        plonevotecryptolib.EGCryptoSystem
+        plonevotecryptolib.KeyPair
+        plonevotecryptolib.PublicKey
+        plonevotecryptolib.PrivateKey
+        plonevotecryptolib.Ciphertext
+        plonevotecryptolib.Threshold.ThresholdEncryptionSetUp
+        plonevotecryptolib.Threshold.ThresholdEncryptionCommitment
+        plonevotecryptolib.Threshold.ThresholdPublicKey
+        plonevotecryptolib.Threshold.ThresholdPrivateKey
+        plonevotecryptolib.Threshold.PartialDecryption
+        plonevotecryptolib.Threshold.ThresholdDecryptionCombinator
+        plonevotecryptolib.Mixnet.CiphertextCollection
+        plonevotecryptolib.Mixnet.ShufflingProof
+    Files: 
+        plonevotecryptolib/EGCryptoSystem.py
+        plonevotecryptolib/KeyPair.py
+        plonevotecryptolib/PublicKey.py
+        plonevotecryptolib/PrivateKey.py
+        plonevotecryptolib/Ciphertext.py
+        plonevotecryptolib/Threshold/ThresholdEncryptionSetUp.py
+        plonevotecryptolib/Threshold/ThresholdEncryptionCommitment.py
+        plonevotecryptolib/Threshold/ThresholdPublicKey.py
+        plonevotecryptolib/Threshold/ThresholdPrivateKey.py
+        plonevotecryptolib/Threshold/PartialDecryption.py
+        plonevotecryptolib/Threshold/ThresholdDecryptionCombinator.py
+        plonevotecryptolib/Mixnet/CiphertextCollection.py
+        plonevotecryptolib/Mixnet/ShufflingProof.py
+        
 -------------------------------------------------------------------------------
 DESCRIPTION:
 -------------------------------------------------------------------------------
@@ -30,10 +52,16 @@ IMPORTS
 -------------------------------------------------------------------------------
 
 Here we load all the plonevotecryptolib modules and classes that we will be 
-using for this test (note that its most of the library).
+using directly within this test (note that this test case exercises, directly 
+or indirectly, most of the library).
 
-	>>> from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem
-	>>> from plonevotecryptolib.Threshold.ThresholdEncryptionSetUp import ThresholdEncryptionSetUp
+    >>> from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem
+    >>> from plonevotecryptolib.Threshold.ThresholdEncryptionSetUp import \
+    ...      ThresholdEncryptionSetUp
+    >>> from plonevotecryptolib.Threshold.ThresholdDecryptionCombinator import \
+    ...      ThresholdDecryptionCombinator
+    >>> from plonevotecryptolib.Mixnet.CiphertextCollection import \
+    ...      CiphertextCollection
 
 -------------------------------------------------------------------------------
 AGENTS
@@ -46,77 +74,83 @@ containing only the information known by that agent.
 An agent in PloneVote may be either an user (e.g. a voter, an election trustee 
 or an auditor) or the PloneVote Server. To simplify our model, we will 
 represent the PloneVote Server by an Election object, holding the information 
-relating to a single election over said server.
+relating to a single election over said server. Note that the real PloneVote 
+server should be capable of hosting many simultaneous elections.
 
 The Election object will keep track of the election related information that we 
-expect will be stored by the PloneVote Server in an actual election. This 
+expect will be stored by the PloneVote Server during an actual election. This 
 information includes:
 
-	* The number of trustees in the election commission, as well as the 
-	threshold of them required to perform vote decryption.
-	* The public keys of each trustee (used for virtual private channels during 
-	threshold scheme set-up).
-	* The commitments of each trustee towards a particular key, used to set up 
-	the threshold encryption scheme.
-	* The threshold public key of the election.
-	* The original collection of cast votes and the shuffled collections and 
-	proofs uploaded as part of the shuffling/mixing process.
-	* The partial decryptions of the final collection of votes.
+    * The number of trustees in the election commission, as well as the 
+    threshold of them required to perform vote decryption.
+    * The public keys of each trustee (used for virtual private channels during 
+    threshold scheme set-up).
+    * The commitments of each trustee towards a particular key, used to set up 
+    the threshold encryption scheme.
+    * The threshold public key of the election.
+    * The original collection of cast votes and the shuffled collections and 
+    corresponding proofs of correct shuffling uploaded as part of the 
+    shuffling/mixing process.
+    * The partial decryptions of the final collection of votes (which contain 
+    their own proofs of correct decryption).
+    * The election results after the vote count has finished. In our case, the 
+    results are merely the full list of decrypted votes.
 
 The real election object in the PloneVote Server will most likely also include 
 some configuration information related to the administrative aspects of the 
-election (phase dates and timers, information to voters, complains, voter 
+election (phase dates and times, information to voters, complains, voter 
 authorization, etc) and the vote representation and counting scheme (including 
 the list of candidates). However, we only model here the parts of the Election 
 object, as stored in the server, that are relevant to the security subprotocol 
-and to plonevotecryptolib.
+of PloneVote and to plonevotecryptolib.
 
 Thus, our Election dummy class is defined as follows:
 
-	>>> class Election:
-	... 	num_trustees = 0	# Values will be set in the configuration phase
-	... 	threshold = 0
-	... 	trustee_pub_keys = []
-	... 	commitments = []
-	... 	threshold_pub_key = None
-	... 	vote_collections = []
-	... 	shuffling_proofs = []
-	... 	partial_decryptions = []
-	...
+    >>> class Election:
+    ...     num_trustees = 0    # Values will be set in the configuration phase
+    ...     threshold = 0
+    ...     trustee_pub_keys = []
+    ...     commitments = []
+    ...     threshold_pub_key = None
+    ...     vote_collections = []
+    ...     shuffling_proofs = []
+    ...     partial_decryptions = []
+    ...     results = []
+    ...
 
 We represent a voter by a class that holds their vote in plaintext, together 
 with the vote receipt (as soon as it becomes available). In practice, the vote 
-plaintext is not stored by the voter anywhere. It is captured at casting time, 
-only to be immediately encrypted. We store it here just to make its value 
-explicit.
+plaintext is not stored by the voter anywhere; it is captured at casting time, 
+only to be immediately encrypted. We store the vote plaintext here just to make 
+its value explicit.
 
-	>>> class Voter:
-	... 	vote = ""
-	... 	receipt = ""
-	...
+    >>> class Voter:
+    ...     vote = ""
+    ...     receipt = ""
+    ...
 
 Election trustees are the members of the election commission. They perform vote 
 collection shuffles to form a reencryption mixnet and perform collaborative 
 vote decryption. We need each election trustee to store:
-	
-	* Their public and private key-pair for standard 1-to-1 ElGammal encryption 
-	(used for virtual private channels during threshold scheme set-up).
-	* Their commitment towards a particular key, used to set up the threshold 
-	encryption scheme.
-	* The fingerprint of the threshold scheme set-up they see when generating 
-	each their own threshold key pair. This is a fingerprint on the set of 
-	commitments for all trustees. It must be checked (using channels external 
-	to the PloneVote server) that each trustee is seeing the same fingerprint.
-	* Their threshold private key.
-	
+    
+    * Their public and private key-pair for standard 1-to-1 ElGammal encryption 
+    (used for virtual private channels during threshold scheme set-up).
+    * Their commitment towards a particular key, used to set up the threshold 
+    encryption scheme.
+    * The fingerprint of the threshold scheme set-up they see when generating 
+    each their own threshold key pair. This is a fingerprint on the set of 
+    commitments for all trustees. It must be checked (using channels external 
+    to the PloneVote server) that each trustee is seeing the same fingerprint.
+    * Their threshold private key.
+    
 Thus, our Trustee dummy class looks like:
 
-	>>> class Trustee:
-	... 	key_pair = None
-	... 	threshold_commitment = None
-	... 	threshold_set_up_fingerprint = ""
-	... 	threshold_priv_key = None
-	...
+    >>> class Trustee:
+    ...     key_pair = None
+    ...     threshold_commitment = None
+    ...     threshold_set_up_fingerprint = ""
+    ...     threshold_priv_key = None
+    ...
 
 The auditor agent is implied in our description of the auditing phase. Since we 
 don't need to store any information related to a particular auditor, we don't 
@@ -132,26 +166,26 @@ the threshold encryption scheme is set-up.
 
 First, we instantiate a particular Election dummy object:
 
-	>>> election = Election()
+    >>> election = Election()
 
 We will run our election with an election commission formed by five trustees, 
 three of which will need to cooperate to perform the vote counting process. We 
 give the correct configuration:
 
-	>>> election.num_trustees = 5
-	>>> election.threshold = 3
-	
-prepare some empty arrays to hold trustee-indexed objects:
+    >>> election.num_trustees = 5
+    >>> election.threshold = 3
+    
+prepare some empty arrays to hold trustee-indexed objects within the Election:
 
-	>>> election.trustee_pub_keys = \
-	...				[None for i in range(0, election.num_trustees)]
-	>>> election.commitments = [None for i in range(0, election.num_trustees)]
+    >>> election.trustee_pub_keys = \
+    ...                [None for i in range(0, election.num_trustees)]
+    >>> election.commitments = [None for i in range(0, election.num_trustees)]
 
 and instantiate dummy objects to represent our trustees:
 
-	>>> trustees = [Trustee() for i in range(0, election.num_trustees)]
+    >>> trustees = [Trustee() for i in range(0, election.num_trustees)]
 
-Now, only the threshold scheme set-up is left. This is a three rounds process.
+Now, only the threshold scheme set-up is left. This is a three round process.
 
 FIRST ROUND:
 
@@ -162,29 +196,28 @@ server. Each trustee may then retrieve the public key of any other trustee from
 the server and use it to send private messages to her, using the server as an 
 insecure bulletin board.
 
-It is recommend, in a real election, that each trustee saves the fingerprint of 
-their public key and conveys it to all other trustees by some channel outside 
-of the PloneVote server. Before accepting the key of a fellow trustee, each 
-trustee is advice to check that its fingerprint correctly matches that given to 
-her by the owner of the key.
+It is recommended, in a real election, that each trustee save the fingerprint 
+of their public key and convey it to all other trustees by some channel 
+outside of the PloneVote server. Before accepting the key of a fellow trustee, 
+each trustee is adviced to check that its fingerprint correctly matches that 
+given to her by the owner of the key.
 
 All keys for the election (1-to-1 and threshold) will be generated for the same 
 ElGamal instance. We load one such instance as our general cryptosystem:
 
-	>>> cryptosys = EGCryptoSystem.from_file( \
-	...  "../../data/shared/cryptosystems/default1024bits.pvcryptosys")
+    >>> cryptosys = EGCryptoSystem.from_file( \
+    ...  "../../data/shared/cryptosystems/default1024bits.pvcryptosys")
 
 Note: We use a 1024 bits cryptosystem to make this tests run faster. In 
-	practice, a 2048 or 4096 bits cryptosystem may be more adequate.
+    practice, a 2048 or 4096 bits cryptosystem may be more adequate.
 
 Now, each trustee generates her own 1-to-1 ElGamal key pair and stores the 
 public key in the server (election object):
-	
-	>>> for i in range(0, election.num_trustees):
-	... 	trustees[i].key_pair = cryptosys.new_key_pair()
-	... 	pub = trustees[i].key_pair.public_key
-	... 	election.trustee_pub_keys[i] = pub
-	...
+    
+    >>> for i in range(0, election.num_trustees):
+    ...     trustees[i].key_pair = cryptosys.new_key_pair()
+    ...     election.trustee_pub_keys[i] = trustees[i].key_pair.public_key
+    ...
 
 SECOND ROUND:
 
@@ -197,10 +230,10 @@ own instance of ThresholdEncryptionSetUp, feeds it the 1-to-1 public keys of
 all other trustees (as well as her own, taken from local storage) and uses it 
 to generate a ThresholdEncryptionCommitment object. This object contains both, 
 the public commitments (also referred in our more theoretical documentation as 
-"public coefficients" or just "commitments") as well as the partial private key 
-information intended for each other trustee. The partial private keys are 
+"public coefficients" or just "commitments"), as well as the partial private  
+key information intended for each other trustee. The partial private keys are 
 encrypted with the 1-to-1 public key of the trustee to whom they are addressed, 
-so that, even though the full  ThresholdEncryptionCommitment object is public, 
+so that, even though the full ThresholdEncryptionCommitment object is public, 
 those pieces can only be used by their intended recipient. We say that they are 
 transmitted by virtual private channels, constructed using the 1-to-1 
 encryption keys.
@@ -208,47 +241,55 @@ encryption keys.
 The following code does the commitment generation for all trustees and uploads 
 said commitments to the server:
 
-	>>> for i in range(0, election.num_trustees):
-	... 	
-	... 	# Each trustee constructs its own ThresholdEncryptionSetUp object.
-	... 	tesu = ThresholdEncryptionSetUp(cryptosys, election.num_trustees, \
-	... 									election.threshold)
-	... 	
-	... 	# Retrieves all the 1-to-1 public keys of the other trustees and 
-	... 	# registers them with the ThresholdEncryptionSetUp object.
-	... 	for j in range(0, election.num_trustees):
-	... 		pub_key = election.trustee_pub_keys[j]
-	... 		tesu.add_trustee_public_key(j, pub_key)
-	... 	
-	...		# Uses that ThresholdEncryptionSetUp object to generate its own 
-	... 	# commitment.
-	... 	trustees[i].threshold_commitment = tesu.generate_commitment()
-	...
-	... 	# and uploads it to the server
-	... 	election.commitments[i] = trustees[i].threshold_commitment
-	...
-	
-Once all commitments have been uploaded to the server, it can automatically 
-generate the threshold public key of the election on its own.
+    >>> for i in range(0, election.num_trustees):
+    ...     
+    ...     # Each trustee...
+    ...     #  Constructs its own ThresholdEncryptionSetUp object.
+    ...     tesu = ThresholdEncryptionSetUp(cryptosys, election.num_trustees, \
+    ...                                     election.threshold)
+    ...     
+    ...     #  Retrieves all the 1-to-1 public keys of the other trustees and 
+    ...     #  registers them with the ThresholdEncryptionSetUp object.
+    ...     for j in range(0, election.num_trustees):
+    ...         pub_key = election.trustee_pub_keys[j]
+    ...         tesu.add_trustee_public_key(j, pub_key)
+    ...     
+    ...     #  Uses that ThresholdEncryptionSetUp object to generate its own 
+    ...     #  commitment.
+    ...     trustees[i].threshold_commitment = tesu.generate_commitment()
+    ...
+    ...     #  and uploads it to the server
+    ...     election.commitments[i] = trustees[i].threshold_commitment
+    ...
+    
+Once all commitments have been uploaded to the server, the server itself can 
+automatically generate the threshold public key of the election on its own. 
 
-	>>> server_tesu = ThresholdEncryptionSetUp(cryptosys,  \
-	... 				election.num_trustees, election.threshold)
-	>>> for j in range(0, election.num_trustees):
-	... 	server_tesu.add_trustee_commitment(j, election.commitments[j])
-	...
-	>>> election.threshold_pub_key = server_tesu.generate_public_key()
-	
+    >>> server_tesu = ThresholdEncryptionSetUp(cryptosys,  \
+    ...                 election.num_trustees, election.threshold)
+    >>> for j in range(0, election.num_trustees):
+    ...     server_tesu.add_trustee_commitment(j, election.commitments[j])
+    ...
+    >>> election.threshold_pub_key = server_tesu.generate_public_key()
+    
+We must keep in mind that, in order for us to be able to trust the threshold 
+public key generated by the server, the election commission must still generate 
+this same key in a distributed secure manner (see third round below) and 
+compare the resulting key's fingerprint with that of the key constructed by the 
+server.
+
+    
 THIRD ROUND:
 
 During the third round, each trustee downloads the commitments for all other 
-trustees, generates the threshold scheme fingerprint (which later must compare 
-with that obtained by other trustees) and produces both the threshold public 
-key for the election (to compare it against that published by the server) and 
-her own threshold private key.
+trustees, generates the threshold scheme's fingerprint (which later must  
+compare with that obtained by other trustees) and produces both the threshold  
+public key for the election (to compare it against that published by the 
+server) and her own threshold private key.
 
 The fingerprint of the threshold public key for the election obtained by each 
 trustee should also be published, through a channel external to the PloneVote 
-Server, in order to make it harder for a malicious server to alter this key 
+server, in order to make it harder for a malicious server to alter this key 
 without being discovered.
 
 Once again, ThresholdEncryptionSetUp is used to mediate this process. It is 
@@ -260,40 +301,42 @@ to obtain her own threshold private key (the 1-on-1 private key is used to
 decrypt the parts of the other trustee's commitments containing their 
 contribution towards the threshold private key of the current trustee).
 
-The following code does the threshold scheme fingerprint and threshold private 
-key generation for all trustees:
+The following code does the threshold scheme fingerprint and threshold key pair 
+generation for all trustees:
 
-	>>> for i in range(0, election.num_trustees):
-	... 	
-	... 	# Each trustee constructs its own ThresholdEncryptionSetUp object.
-	... 	tesu = ThresholdEncryptionSetUp(cryptosys, election.num_trustees, \
-	... 									election.threshold)
-	... 	
-	... 	# Retrieves all the commitments of the other trustees and registers
-	... 	# them with the ThresholdEncryptionSetUp object.
-	... 	for j in range(0, election.num_trustees):
-	... 		commitment = election.commitments[j]
-	... 		tesu.add_trustee_commitment(j, commitment)
-	... 	
-	...		# Generates and stores the threshold scheme fingerprint.
-	... 	# Later, this should be compared with the fingerprints obtained by 
-	... 	# all other trustees.
-	... 	trustees[i].threshold_set_up_fingerprint = tesu.get_fingerprint()
-	...
-	... 	# Generates the threshold key pair corresponding to herself
-	... 	priv_key = trustees[i].key_pair.private_key
-	... 	t_key_pair = tesu.generate_key_pair(i, priv_key)
-	...
-	... 	# Obtains the threshold public key and compares it against that 
-	... 	# published by the server
-	... 	t_pub_key = t_key_pair.public_key
-	... 	if (t_pub_key.get_fingerprint() != 
-	... 		election.threshold_pub_key.get_fingerprint()):
-	... 		assert False,"ERROR: threshold public key fingerprint mismatch."
-	...
-	... 	# Obtains and stores her own threshold private key
-	... 	trustees[i].threshold_priv_key = t_key_pair.private_key
-	...
+    >>> for i in range(0, election.num_trustees):
+    ...     
+    ...     # Each trustee...
+    ...     #  constructs its own ThresholdEncryptionSetUp object.
+    ...     tesu = ThresholdEncryptionSetUp(cryptosys, election.num_trustees, \
+    ...                                     election.threshold)
+    ...     
+    ...     #  Retrieves all the commitments of the other trustees and 
+    ...     #  registers them with the ThresholdEncryptionSetUp object.
+    ...     for j in range(0, election.num_trustees):
+    ...         commitment = election.commitments[j]
+    ...         tesu.add_trustee_commitment(j, commitment)
+    ...     
+    ...     #  Generates and stores the threshold scheme fingerprint.
+    ...     #  (Later, this should be compared with the fingerprints obtained 
+    ...     #  by all other trustees.)
+    ...     trustees[i].threshold_set_up_fingerprint = tesu.get_fingerprint()
+    ...
+    ...     #  Generates the threshold key pair corresponding to herself.
+    ...     #  For that, she must provide her 1-to-1 private key.
+    ...     priv_key = trustees[i].key_pair.private_key
+    ...     t_key_pair = tesu.generate_key_pair(i, priv_key)
+    ...
+    ...     #  Obtains the threshold public key and compares it against that 
+    ...     #  published by the server.
+    ...     t_pub_key = t_key_pair.public_key
+    ...     if (t_pub_key.get_fingerprint() != 
+    ...         election.threshold_pub_key.get_fingerprint()):
+    ...         assert False,"ERROR: threshold public key fingerprint mismatch."
+    ...
+    ...     #  Obtains and stores her own threshold private key
+    ...     trustees[i].threshold_priv_key = t_key_pair.private_key
+    ...
 
 -------------------------------------------------------------------------------
 VOTING PHASE
@@ -307,35 +350,36 @@ their vote and returns a voting receipt: a fingerprint of the encrypted vote.
 We need somewhere in the server to store the votes, so we instantiate an 
 empty initial vote collection.
 
-	>>> election.vote_collections.append([])
+    >>> pub = election.threshold_pub_key
+    >>> election.vote_collections.append(CiphertextCollection(pub))
 
 We instantiate a few dummy voters, each with a dummy vote to cast (in 
 plaintext). In the real system, this plaintext is never stored and each voter 
 just inputs their preferences on the web client, which encrypts the vote as 
 soon as those preferences have been fully given.
 
-	>>> voters = []
-	>>> for i in range(0,20):
-	... 	voter = Voter()
-	... 	voter.vote = "Dummy vote #%d" % i
-	... 	voters.append(voter)
-	...
-	
-Each voter uses the web client to: download the threshold public key for the 
+    >>> voters = []
+    >>> for i in range(0,20):
+    ...     voter = Voter()
+    ...     voter.vote = "Dummy vote #%d" % i
+    ...     voters.append(voter)
+    ...
+    
+Each voter uses the web client to download the threshold public key for the 
 current election from the server, encrypt their vote and generate a vote 
 receipt (as a SHA-256 hash of the encrypted vote, block by block). Finally, the 
-voter cast her vote to the server.
+voter casts her vote to the server. We simulate this process below.
 
 Note: In the final system, the voter will be required to authenticate and be 
-	authorized to vote in the current election in order for her vote to be 
-	captured.
+    authorized to vote in the current election in order for her vote to be 
+    captured.
 
-	>>> for i in range(0,20):
-	... 	t_pub_key = election.threshold_pub_key
-	... 	encrypted_vote = t_pub_key.encrypt(voters[i].vote)
-	... 	voter[i].receipt = encrypted_vote.get_fingerprint()
-	... 	election.vote_collections[0].append(encrypted_vote)
-	...
+    >>> for i in range(0,20):
+    ...     t_pub_key = election.threshold_pub_key
+    ...     encrypted_vote = t_pub_key.encrypt_text(voters[i].vote)
+    ...     voters[i].receipt = encrypted_vote.get_fingerprint()
+    ...     election.vote_collections[0].add_ciphertext(encrypted_vote)
+    ...
 
 After the time alloted for the Voting Phase concludes, the server should 
 automatically transfer to the Counting Phase.
@@ -343,3 +387,130 @@ automatically transfer to the Counting Phase.
 -------------------------------------------------------------------------------
 COUNTING PHASE
 -------------------------------------------------------------------------------
+
+From the point of view of the security subprotocol, the counting phase of the 
+election is divided into two stages. In the first stage, at least 
+election.threshold trustees verifiably shuffle the votes. In the second stage, 
+the same number of trustees collaborate to decrypt the final collection of 
+shuffled votes.
+
+For the purposes of this test, we will select k=election.threshold trustees at 
+random here, who will perform both the shuffling and decryption of the votes.
+
+    >>> import random
+    >>> cooperating_trustee_idxs = [i for i in range(0, election.num_trustees)]
+    >>> random.shuffle(cooperating_trustee_idxs)
+    >>> cooperating_trustee_idxs = cooperating_trustee_idxs[:election.threshold]
+
+SHUFFLING STAGE:
+
+Each of the election.threshold trustees shuffles the votes sequentially. To do 
+so, each trustee downloads the last available collection of votes, shuffles 
+that collection, generating a zero-knowledge proof of shuffling, and uploads 
+both the new collection and the proof. This new collection becomes the 
+collection the next trustee would download for shuffling.
+
+    >>> for i in cooperating_trustee_idxs:
+    ...
+    ...     # trustee i dowloads the last available collection of votes
+    ...     current_collection = election.vote_collections[-1]
+    ...
+    ...     #  shuffles with proof
+    ...     (new_collection, proof) = current_collection.shuffle_with_proof()
+    ...
+    ...     #  uploads the shuffled collection of votes and the proof
+    ...     election.vote_collections.append(new_collection)
+    ...     election.shuffling_proofs.append(proof)
+    ...
+
+DECRYPTION STAGE:
+
+After the collection of encrypted votes has been shuffled election.threshold 
+times, the trustees must collaborate to decrypt it. Each trustee is asked to 
+generate a verifiable partial decryption of the last available shuffled set of 
+votes. When election.threshold partial decryptions are available for each 
+particular vote, this partial decryptions can be combined to recover the 
+plaintext for that vote.
+
+All this partial decryptions are uploaded to the server, clearly indicating to 
+which trustee and vote they correspond to. Here we simply use a list of lists 
+to store the partial decryptions on the server. The outer index indicates which 
+trustee uploaded the decryptions and the inner lists contain the partial 
+decryptions of votes in the same order as they appear in the last shuffled 
+collection.
+
+    >>> election.partial_decryptions = \
+    ...     [None for i in range(0, election.num_trustees)]
+
+Now we simulate each trustee, in our designated cooperating_trustee_idxs group 
+of trustees, as she creates and uploads her partial decryptions:
+
+    >>> for i in cooperating_trustee_idxs:
+    ...
+    ...     # trustee i downloads the last available collection of votes
+    ...     votes = election.vote_collections[-1]
+    ...
+    ...     #  Generates a partial decryption for each vote in the collection 
+    ...     #  using her threshold private key.
+    ...     priv = trustees[i].threshold_priv_key
+    ...     part_decryptions = []
+    ...     for vote in votes:
+    ...         p_dec = priv.generate_partial_decryption(vote)
+    ...         part_decryptions.append(p_dec)
+    ...
+    ...     # Uploads all partial decryptions in order.
+    ...     election.partial_decryptions[i] = part_decryptions
+    ...
+
+After enough partial decryptions are available, the PloneVote Server combines 
+them to obtain the plaintext of the votes. To combine the partial decryptions, 
+the mediator class ThresholdDecryptionCombinator is used. This class 
+automatically checks the proof of correct partial decryption (included within 
+each PartialDecryption object) before accepting each partial decryption for 
+combination.
+
+    >>> votes = election.vote_collections[-1]
+    >>> for i in range(0, votes.get_length()):
+    ...
+    ...     # Set up the ThresholdDecryptionCombinator for this particular vote.
+    ...     vote_ciphertext = votes[i]
+    ...     combinator = ThresholdDecryptionCombinator(
+    ...                     election.threshold_pub_key,
+    ...                     vote_ciphertext,
+    ...                     election.num_trustees,
+    ...                     election.threshold)
+    ...
+    ...     # Add the partial decryptions to the combinator.
+    ...     for j in cooperating_trustee_idxs:
+    ...         vote_part_dec = election.partial_decryptions[j][i]
+    ...         combinator.add_partial_decryption(j, vote_part_dec)
+    ...
+    ...     # Combine the partial decryptions to recover the vote's plaintext.
+    ...     vote_plaintext = combinator.decrypt_to_text()
+    ...
+    ...     # and add it to the election's results.
+    ...     election.results.append(vote_plaintext) 
+    ...
+
+Finally votes are counted within the server, in a way that depends on the vote 
+representation and counting scheme, and voter friendly results are published 
+for the election.
+
+In this test, we only check that the decrypted votes are the same as those cast 
+originally by the voters:
+
+    >>> for voter in voters:
+    ...     if voter.vote not in election.results:
+    ...         assert False, "ERROR: Cast vote not found in results"
+    ...
+
+Note: The previous test is complete as long as there are no repeated votes, 
+    as with our current example. If there were repeated votes, each such vote 
+    should appear in the results once for each time it was cast. We may want to 
+    test that this is true in a different test file.
+
+-------------------------------------------------------------------------------
+AUDITING PHASE
+-------------------------------------------------------------------------------
+
+
