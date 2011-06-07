@@ -1,8 +1,10 @@
 -------------------------------------------------------------------------------
 HEADER:
 -------------------------------------------------------------------------------
-Tested in this file: BitStream: A class representing a sequence of bits.
-	Classes: 
+Tested in this file: 
+    BitStream: A class representing a sequence of bits.
+    
+	Modules: 
 		plonevotecryptolib.utilities.BitStream
 	Files: 
 		plonevotecryptolib/utilities/BitStream.py
@@ -33,15 +35,21 @@ Internally, BitStream uses cell based storage that should be considerable more
 space efficient than using a python array with elements in [0,1].
 
 -------------------------------------------------------------------------------
+IMPORTS
+-------------------------------------------------------------------------------
+
+Before we can show any usage examples, we must first import the BitStream 
+utility and related exceptions:
+
+	>>> from plonevotecryptolib.utilities.BitStream import \
+	...     BitStream, NotEnoughBitsInStreamError
+	
+
+-------------------------------------------------------------------------------
 BYTES AND INTEGERS
 -------------------------------------------------------------------------------
 
-We import the BitStream utility and related exceptions:
-
-	>>> from plonevotecryptolib.utilities.BitStream import BitStream
-	>>> from plonevotecryptolib.utilities.BitStream import NotEnoughBitsInStreamError
-
-Now, lets create a new BitStream and add a few bytes to it. We can use the 
+First, lets create a new BitStream and add a few bytes to it. We can use the 
 put_byte() method to insert a byte into the stream at the current position, 
 which is, of course, advanced after every insertion:
 
@@ -63,6 +71,134 @@ The get_length() method returns the full length of the BitStream in bits:
 	>>> bitstream.get_length()	# specifically:
 	48
 
+The get_current_pos() method returns the value of the current position marker 
+in the bitstream. Any data read from or written to the stream will start at the 
+position indicated by the current position marker.
 
+Right now we should be at the end of the stream, so the current position should 
+be equal to the stream length:
 
+    >>> bitstream.get_current_pos() == bitstream.get_length()
+    True
+
+We can use the seek(pos) method to change the current position marker to any 
+specific position in the stream. The argument pos is the new current position. 
+Remember that the current position, and thus pos, is expressed in bits.
+
+    >>> bitstream.seek(16)
+    >>> bitstream.get_current_pos()
+    16
+    
+The method get_byte() retrieves the next 8 bits in the stream, interpreted as a 
+single byte value.
+
+Since we are at pos = 16, this will retrieve 145, the third byte in the stream:
+  
+    >>> bitstream.get_byte()
+    145
+
+Also, we should now be at pos = 24, since we read 8 bytes from the stream:
+
+    >>> bitstream.get_current_pos()
+    24
+    
+Lets read the bytes we put in the stream, one by one:
+
+    >>> bitstream.seek(0)   # Go back to the beginning of the stream.
+    >>> while(bitstream.get_current_pos() != bitstream.get_length()):
+    ...     print bitstream.get_byte()
+    ...
+    12
+    222
+    145
+    42
+    0
+    255
+    
+We can write data into the bitstream at the current position, regardless of 
+whether or not that position is at the end of the stream. Data written to the 
+middle of the stream will overwrite the current data at that same position.
+
+As an example, lets overwrite the first (12) and third (145) bytes with new 
+values (3 and 214, respectively):
+
+    >>> bitstream.seek(0)       # Go to the start of the first byte
+    >>> bitstream.put_byte(3)   # replace it
+    >>> bitstream.seek(16)      # Not do the same for the third byte
+    >>> bitstream.put_byte(214)
+    
+We can test our replacement by printing the full list of bytes in the stream 
+again:
+
+    >>> bitstream.seek(0)
+    >>> while(bitstream.get_current_pos() != bitstream.get_length()):
+    ...     print bitstream.get_byte()
+    ...
+    3
+    222
+    214
+    42
+    0
+    255
+
+Besides put_byte() and get_byte(), we can read and write integers of arbitrary 
+size from and to the stream. For that, we use the following two methods:
+
+    * put_num(num, bit_length) - Writes the bit representation of num, as an 
+                                integer of bit_length bits.
+    * get_num(bit_length)      - Reads the next bit_length bits in the stream, 
+                                interpreting them as an integer of bit_length 
+                                bits.
+                                
+We can, for example, read each pair of bytes in our current stream as a 16-bit 
+integer. Remember that the current bytes in the stream are:
+
+    3       # 0000 0011
+    222     # 1101 1110
+    214     # 1101 0110
+    42      # 0010 1010
+    0       # 0000 0000
+    255     # 1111 1111
+    
+So, reading that as 3 16-bit integers, we will get:
+
+     990    # 0000 0011 1101 1110
+     54826  # 1101 0110 0010 1010
+     255    # 0000 0000 1111 1111
+     
+Let's try it out:
+    
+    >>> bitstream.seek(0)
+    >>> while(bitstream.get_current_pos() != bitstream.get_length()):
+    ...     print bitstream.get_num(16)
+    ...
+    990
+    54826
+    255
+
+We can also append the 16-bit integer 12345 (0011 0000 0011 1001) to the end of 
+the bit stream, using put_num:
+
+    >>> bitstream.put_num(12345, 16)
+    
+Now we have 64 bits total in our bitstream:
+
+    >>> bitstream.get_length()
+    64
+
+We can use get_num as well to read the contents of the bitstream as two 32-bit 
+numbers or a giant 64 bit number, as follows:
+
+    >>> bitstream.seek(0)
+    >>> bitstream.get_num(32)   # 0000 0011 1101 1110 1101 0110 0010 1010
+    64935466
+    
+    >>> bitstream.get_num(32)   # 0000 0000 1111 1111 0011 0000 0011 1001
+    16724025
+    
+    >>> bitstream.seek(0)
+    >>> # 0000001111011110110101100010101000000000111111110011000000111001
+    >>> bitstream.get_num(64)
+    278895702837243961
+    
 
