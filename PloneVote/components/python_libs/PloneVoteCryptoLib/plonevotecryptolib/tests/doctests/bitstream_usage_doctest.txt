@@ -124,7 +124,7 @@ values (3 and 214, respectively):
 
     >>> bitstream.seek(0)       # Go to the start of the first byte
     >>> bitstream.put_byte(3)   # replace it
-    >>> bitstream.seek(16)      # Not do the same for the third byte
+    >>> bitstream.seek(16)      # Now do the same for the third byte
     >>> bitstream.put_byte(214)
     
 We can test our replacement by printing the full list of bytes in the stream 
@@ -202,3 +202,78 @@ numbers or a giant 64 bit number, as follows:
     278895702837243961
     
 
+-------------------------------------------------------------------------------
+TEXTUAL STRINGS
+-------------------------------------------------------------------------------
+
+It is possible to store string data inside a bitstream. At the moment, only 
+standard python strings, encoded in ASCII or UTF-8, are handled correctly. 
+Unicode strings, created as u"My unicode string" or unicode("Unicode string") 
+are not allowed.
+
+To write a string to the bitstream, we use the put_string() method. This takes 
+the string given as a parameter and stores it inside the bitstream, starting at 
+the current position and overwriting/expanding the bitstream as needed.
+
+NOTE: Keep in mind that, in the case of UTF-8 strings, the number of bytes 
+    required to store the string may not correspond to the number of characters 
+    conforming the string. It will, however, correspond to the result of 
+    calling len() on the string.
+    
+Lets clear up our bitstream and fill it with a single familiar string:
+
+    >>> bitstream = BitStream() # New bitstream
+    >>> bitstream.put_string("Hello World!")
+    
+This is an ASCII string with 12 characters, so it is 12*8 = 96 bits long:
+
+    >>> bitstream.get_length()
+    96
+
+We can read any number of bits from the bitstream and attempt to interpret them 
+as a python string. For this, we use the get_string method:
+
+    >>> bitstream.seek(0) # starting at the beginning
+    >>> bitstream.get_string(96) # read the next 96 bits as an string.
+    'Hello World!'
+    
+Of course, nothing forces us to read the full string as we stored it, we can 
+retrieve only a part of our message, so long as we are stopping at a character 
+boundary. That is, we are reading an integer number of characters and not, say, 
+14 bits of data.
+
+NOTE: Once again, in the case of UTF-8, reading an integer number of bytes 
+    doesn't necessarily mean that we are reading whole characters, since some 
+    non-ASCII characters are represented in UTF-8 as sequences of 2 to 4 bytes.
+    
+Lets read only the first part of our greeting:
+
+    >>> bitstream.seek(0)   # Back at the beginning
+    >>> bitstream.get_string(6*8) # 6 ASCII characters
+    'Hello '
+
+Now, lets replace the second part of the greeting with something a bit more 
+interesting:
+
+    >>> bitstream.put_string("BitStream!")
+
+The result of which is:
+
+    >>> bitstream.seek(0)
+    >>> bitstream.get_string(bitstream.get_length())
+    'Hello BitStream!'
+    
+
+-------------------------------------------------------------------------------
+ADDITIONAL BIT STREAM FORMATS: BIT STRINGS, HEX, BASE64
+-------------------------------------------------------------------------------
+    
+
+-------------------------------------------------------------------------------
+OTHER BITSTREAM METHODS
+-------------------------------------------------------------------------------
+    
+
+-------------------------------------------------------------------------------
+BITSTREAM EXCEPTIONS AND ADDITIONAL CONSIDERATIONS
+-------------------------------------------------------------------------------

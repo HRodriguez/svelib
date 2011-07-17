@@ -11,7 +11,7 @@ This library provides all basic cryptographic operations required by the PloneVo
       classifiers=[
       		'Development Status :: 1 - Planning',
       		'Intended Audience :: Developers',
-      		'License :: OSI Approved :: BSD License',
+      		'License :: OSI Approved :: MIT License',
       		'Natural Language :: English',
       		'Operating System :: MacOS :: MacOS X',
       		'Operating System :: Microsoft :: Windows',

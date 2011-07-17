@@ -2,8 +2,8 @@
 		- threshold encryption
 		
 	+ Threshold private key generation
-	- Threshold decryption
-	- Threshold verifiable decryption
+	+ Threshold decryption
+	+ Threshold verifiable decryption
 	
 	- Save commitments to file
 	- Load commitments from file
@@ -15,9 +15,9 @@
 	- XML serializer ?
 		
 	Next week:
-		- mixnets
-		- proof of shuffling
-		- verifiable decryption
+		+ mixnets
+		+ proof of shuffling
+		+ verifiable decryption
 
 Early optimization is the O(sqrt(n)*lg^2(n)) of all evil...
 
