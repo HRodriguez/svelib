@@ -46,5 +46,5 @@ if(sys.version_info < (2, 5)): # pragma: no cover
 # End HACK
 ######
 
-doctest.testfile("full_election_doctest.txt")
+#doctest.testfile("full_election_doctest.txt")
 doctest.testfile("bitstream_usage_doctest.txt")

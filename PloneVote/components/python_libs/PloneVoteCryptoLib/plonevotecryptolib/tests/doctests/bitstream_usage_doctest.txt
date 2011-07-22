@@ -263,10 +263,97 @@ The result of which is:
     >>> bitstream.get_string(bitstream.get_length())
     'Hello BitStream!'
     
+Of course, any data in the bitstream located after the end of the inserted 
+string is preserved:
+
+    >>> bitstream.seek(6*8)
+    >>> bitstream.put_string("World!")
+    >>> bitstream.seek(0)
+    >>> bitstream.get_string(bitstream.get_length())
+    'Hello World!eam!'
+    
 
 -------------------------------------------------------------------------------
 ADDITIONAL BIT STREAM FORMATS: BIT STRINGS, HEX, BASE64
 -------------------------------------------------------------------------------
+
+It is possible to read any number of bits from a BitStream object as a string 
+directly representing the 0's and 1's of the bits in the stream. This is 
+accomplished using the get_bit_dump_string method, as follows:
+
+1) First, we create a new bitstream and populate it with some information:
+
+    >>> bitstream = BitStream()
+	>>> bytes = [ 12,	# 0000 1100
+	... 	222,		# 1101 1110
+	... 	145,		# 1001 0001
+	... 	42,			# 0010 1010
+	... 	0,			# 0000 0000
+	... 	255]		# 1111 1111
+	>>> for byte in bytes:
+	... 	bitstream.put_byte(byte)
+	...
+	
+2) Now, lets get the full string of bits in the stream:
+
+    >>> bitstream.seek(0)
+    >>> bitstream.get_bit_dump_string(6*8)  # read 6*8=48 bits
+    '000011001101111010010001001010100000000011111111'
+
+Of course, the returned string contains a full ASCII character for each bit 
+read from the bitstream, which means that it uses 8 times as much memory to 
+represent those bits. As such, get_bit_dump_string is most useful for 
+debugging, allowing us to observe the contents of the bitstream 'directly'.
+
+For a more compact representation that is still amenable to be read by humans, 
+we can use the get_hex method. This method gives us the contents of the 
+bitstream represented as a base 16 or hexadecimal number, given as a string:
+
+    >>> bitstream.seek(0)
+    >>> bitstream.get_hex(6*8)
+    '0cde912a00ff'
+    
+Since this format uses 8 bits (a single ASCII character) to represent each 4 
+bits of data in the bitstream, it uses twice the memory required to store the 
+actual contents of the bitstream.
+
+When what we wish to do is to store the contents of the bitstream as a string, 
+without wasting space needlessly (such as to dump the data in the bitstream to 
+a field in an XML file), we can use the get_base64 method. This method gives 
+us the contents of the bitstream represented as a base 64 number encoded as an 
+ASCII string. This is a safe and standardized way of storing 6 bits of data per 
+8 bits character, (see http://en.wikipedia.org/wiki/Base64):
+
+    >>> bitstream.seek(0)
+    >>> bitstream.get_base64(6*8)
+    'DN6RKgD/'
+    
+As we can see, the results are less human-friendly, but ideal for storage in 
+text-based formats.
+
+Note: There is no safe way of storing a full 8 bit of data per character 
+    because of how different operating systems and encoding threat character 
+    code points that are not part of the 'safe' base64 encoding.
+
+Note: All previous get_X methods, in keeping with the general interface of 
+    BitStream's get_X methods, take the number of bits to read as their only 
+    argument.
+    
+Each of the get_ methods described in this section has an associated put_ 
+method that can be used to write into the bitstream the bits represented within 
+the binary, hexadecimal or base64 string. The following example showcases those 
+methods:
+
+    >>> bitstream = BitStream() # New BitStream object
+    >>> bitstream.put_bit_dump_string("0000110011011110") # Put 1/3 as bits
+    >>> bitstream.put_hex("912a") # Put 1/3 as hex data
+    >>> bitstream.put_base64("AP8=") # Put 1/3 as base 64 data
+    >>> bitstream.seek(0)
+    >>> bitstream.get_bit_dump_string(6*8)  # read the whole contents
+    '000011001101111010010001001010100000000011111111'
+
+Of those, the put_base64 is likely to be the most useful, as a way of restoring 
+a BitStream object from text based storage.
     
 
 -------------------------------------------------------------------------------
