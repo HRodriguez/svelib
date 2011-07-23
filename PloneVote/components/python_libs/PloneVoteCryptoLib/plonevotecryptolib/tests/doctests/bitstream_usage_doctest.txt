@@ -359,8 +359,75 @@ a BitStream object from text based storage.
 -------------------------------------------------------------------------------
 OTHER BITSTREAM METHODS
 -------------------------------------------------------------------------------
+
+There is one additional method in BitStream's public interface:
+
+put_bitstream_copy(other_bitstream)
+
+This method will copy the contents of other_bitstream (which should be another 
+BitStream object), from other_bitstream's current position to its end, into the 
+current bitstream, starting at its current position.
+
+To see how this method works, lets created two new bitstreams, bs1 and bs2, and 
+populate them with some binary data:
+
+    >>> bs1 = BitStream()
+    >>> bs1.put_bit_dump_string("000011001101111010010001")
+    >>> bs2 = BitStream()
+    >>> bs2.put_bit_dump_string("001010100000000011111111")
     
+Now, lets append the contents of bs2 to bs1:
+
+    >>> bs2.seek(0)     # We want to start copying bs2 at the beginning
+    >>> bs1.put_bitstream_copy(bs2)
+
+We then can check that the contents of bs1 are the original contents of bs1, 
+followed by the contents of bs2:
+
+    >>> bs1.seek(0)
+    >>> bs1.get_bit_dump_string(bs1.get_length())
+    '000011001101111010010001001010100000000011111111'
+
 
 -------------------------------------------------------------------------------
 BITSTREAM EXCEPTIONS AND ADDITIONAL CONSIDERATIONS
 -------------------------------------------------------------------------------
+
+There are two common problems when working with BitStream objects that will 
+result in exceptions being raised:
+
+    * If the user attempts to read more bits from the bitstream, using any 
+      get_X method, than those actually available from the current position up 
+      until the length of the stream, this will result in a 
+      NotEnoughBitsInStreamError exception being raised. 
+      
+      Example:
+    
+    >>> bitstream = BitStream()
+    >>> bitstream.put_num(54826, 16) # write 16 bits of data
+    >>> bitstream.seek(0)   # Place current position at the beginning
+    >>> bitstream.get_base64(17)    # read 17 bits of data
+    Traceback (most recent call last):
+    ...
+    NotEnoughBitsInStreamError: Not enough bits in the bitstream.
+    
+      This exception can often be encountered when the current position in the 
+      bitstream is not the one expected by the user:
+    
+    >>> itstream = BitStream()
+    >>> bitstream.put_num(54826, 16) # write 16 bits of data
+    >>> bitstream.get_base64(1)  # read 1 bit FROM BEYOND THE END OF THE STREAM
+    Traceback (most recent call last):
+    ...
+    NotEnoughBitsInStreamError: Not enough bits in the bitstream.
+    
+      Moral: Don't forget to seek()
+      
+    * If the user attempts to seek() past the length of the bitstream, an 
+      IndexError exception will be raised:
+      
+    >>> bitstream.seek(200)
+    Traceback (most recent call last):
+    ...
+    IndexError: Seeking after the bitstream's end is not permitted.
+    
