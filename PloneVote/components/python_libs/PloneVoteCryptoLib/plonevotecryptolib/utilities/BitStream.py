@@ -531,6 +531,20 @@ class BitStream:
 		Arguments:
 			bitstream::BitStream  -- the bitstream from which to copy the data.
 		"""
+		
+		# Check if bitstream is the same object as self, if so, we cannot copy 
+		# using the normal method, since it modifies the BitStream as it copies 
+		# it unto itself: weird errors.
+		if(bitstream is self):
+		    # Fortunately the semantics of put_bitstream_copy are to copy the 
+		    # given stream, from its current position until the end, into
+		    # this stream (self), starting at its (self's) current position.
+		    # Thus, a.put_bitstream_copy(a) should do nothing, except move the
+		    # current position to the end.
+		    self.seek(self.get_length())
+		    return
+		    
+		
 		to_copy = bitstream.get_length() - bitstream.get_current_pos()
 		
 		for step_size in [4096, 512, 64, 8, 1]:
