@@ -76,6 +76,22 @@ class NotEnoughBitsInStreamError(Exception):
 		"""
 		self.msg = msg
 
+
+class SeekOutOfRangeError(Exception):
+	"""
+	An exception raised whenever the user seeks past the end of the written 
+	BitStream or before its beginning (ie. a negative position).
+	"""
+	
+	def __str__(self):
+		return self.msg
+	
+	def __init__(self, msg):
+		"""
+		Constructs a new SeekOutOfRangeError
+		"""
+		self.msg = msg
+
 class BitStream:
 	"""
 	A class representing a sequence of bits
@@ -125,8 +141,13 @@ class BitStream:
 						   (given in bits)
 		"""
 		if(pos > self.get_length()):
-			raise IndexError("Seeking after the bitstream's end is not " \
-							 "permitted.")
+			raise SeekOutOfRangeError(
+			"Seeking after the bitstream's end is not permitted.")
+							          
+		if(pos < 0):
+			raise SeekOutOfRangeError(
+			"Negative value passed to seek(). Seeking before the bitstream's "
+			"beginning is not permitted.")
 		
 		self._current_cell = pos / self._cell_size
 		self._current_cell_bit = pos % self._cell_size
@@ -167,9 +188,20 @@ class BitStream:
 		
 		Arguments:
 			num::(int|long)	-- The number we wish to append to the bitstream.
+			                   (must be non-negative)
 			bit_length::int	-- The number of bits we wish to use to represent 
 							   num before adding it to the stream.
 		"""
+		# Check that num is non-negative:
+		if(num < 0):
+		   raise ValueError("Parameter num must be a positive integer. " \
+		                    "Got: (%s) [< 0]" % (num))
+		                    
+		# Check that bit_length is non-negative:
+		if(bit_length < 0):
+		    raise ValueError("Parameter bit_length must be a positive integer."\
+		                    " Got: (%s) [< 0]" % (bit_length))
+		    
 		limit_num_size = 2**bit_length
 		if(num >= limit_num_size):
 			raise ValueError("The given integer (%d) is not representable as " \
