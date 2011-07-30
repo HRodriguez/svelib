@@ -69,7 +69,7 @@ Before we can show any usage examples, we must first import the BitStream
 utility and related exceptions:
 
 	>>> from plonevotecryptolib.utilities.BitStream import \
-	...     BitStream, NotEnoughBitsInStreamError
+	...     BitStream, NotEnoughBitsInStreamError, SeekOutOfRangeError
 	
 
 -------------------------------------------------------------------------------
@@ -456,5 +456,5 @@ result in exceptions being raised:
     >>> bitstream.seek(200)
     Traceback (most recent call last):
     ...
-    IndexError: Seeking after the bitstream's end is not permitted.
+    SeekOutOfRangeError: Seeking after the bitstream's end is not permitted.
     
