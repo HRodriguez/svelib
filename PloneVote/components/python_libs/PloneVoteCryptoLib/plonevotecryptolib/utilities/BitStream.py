@@ -186,14 +186,18 @@ class BitStream:
         from right to left.
         """
         # Be very careful with off-by-one errors if modifying this code.
-        assert num < 2**(end_bit - start_bit + 1), "The number does not fit in the given cell fragment."
+        assert num < 2**(end_bit - start_bit + 1), \
+               "The number does not fit in the given cell fragment."
         
-        clear_mask = (self._cell_max - 1)    # 111111111111111
-        clear_mask ^= (2**(self._cell_size - start_bit) - 1)    # 111110000000000 if start_bit=6 
-        clear_mask |= (2**(self._cell_size - end_bit - 1) - 1)            # 111110000011111 if end_bit=10
+        clear_mask = (self._cell_max - 1)   # 111111111111111
+        clear_mask ^= (2**(self._cell_size - start_bit) - 1)
+        # ^- Example: 111110000000000 if start_bit=6
+        clear_mask |= (2**(self._cell_size - end_bit - 1) - 1)
+        # ^- Example: 111110000011111 if end_bit=10
         
         # Clear the desired space in the cell
-        self._cells[cell_num] = (self._cells[cell_num] & clear_mask) % self._cell_max
+        self._cells[cell_num] = (self._cells[cell_num] & clear_mask) % \
+                                self._cell_max
         
         # Now insert num into the cleared space
         num = num << (self._cell_size - end_bit - 1)
@@ -212,8 +216,8 @@ class BitStream:
         Arguments:
             num::(int|long)    -- The number we wish to append to the bitstream.
                                (must be non-negative)
-            bit_length::int    -- The number of bits we wish to use to represent 
-                               num before adding it to the stream.
+            bit_length::int    -- The number of bits we wish to use to 
+                               represent num before adding it to the stream.
         """
         # Check that num is non-negative:
         if(num < 0):
@@ -318,7 +322,7 @@ class BitStream:
                                interpreted as a binary sequence.
         """
         if(bit_length > self.get_length() - self.get_current_pos()):
-            raise NotEnoughBitsInStreamError("Not enough bits in the bitstream.")
+           raise NotEnoughBitsInStreamError("Not enough bits in the bitstream.")
         
         limit_num_size = 2**bit_length
         num = 0
@@ -328,7 +332,8 @@ class BitStream:
         bits_left_in_current_cell = self._cell_size - self._current_cell_bit
         if(bits <= bits_left_in_current_cell):
             displacement = bits_left_in_current_cell - bits
-            num = (self._cells[self._current_cell] >> displacement) % limit_num_size
+            num = (self._cells[self._current_cell] >> displacement) % \
+                  limit_num_size
             self._current_cell_bit +=  bits
             return num
         
@@ -348,7 +353,8 @@ class BitStream:
         # Finally add the trailing bits from the last cell
         if(bits > 0):
             displacement = self._cell_size - bits
-            trailing_bits = (self._cells[self._current_cell] >> displacement) % 2**bits
+            trailing_bits = (self._cells[self._current_cell] >> displacement) \
+                            % 2**bits
             num = (num << bits) | trailing_bits
             self._current_cell_bit = bits
         
@@ -409,7 +415,7 @@ class BitStream:
         represented by a variable number of bits (ie. 1 or 2 byte chars).
         """
         if(bit_length > self.get_length() - self.get_current_pos()):
-            raise NotEnoughBitsInStreamError("Not enough bits in the bitstream.")
+           raise NotEnoughBitsInStreamError("Not enough bits in the bitstream.")
         
         if(bit_length % 8 != 0):
             raise ValueError("Valid string data must have a length that is " \
@@ -504,17 +510,17 @@ class BitStream:
         of data is not a multiple of 24.
         
         Arguments:
-            bit_length::int    -- The amount of data to return as base64. Must be 
-                               a multiple of 8 (byte aligned), to comply with 
-                               RFC3548's specification about the input to 
+            bit_length::int    -- The amount of data to return as base64. Must 
+                               be a multiple of 8 (byte aligned), to comply 
+                               with RFC3548's specification about the input to 
                                base64 encoders.
         
         Returns:
-            base64::string    -- The next bit_length bits in the stream, encoded 
-                               in base64.
+            base64::string    -- The next bit_length bits in the stream, 
+                                 encoded in base64.
         """
         if(bit_length > (self.get_length() - self.get_current_pos())):
-            raise NotEnoughBitsInStreamError("Not enough bits in the bitstream.")
+           raise NotEnoughBitsInStreamError("Not enough bits in the bitstream.")
             
         if(bit_length % 8 != 0):
             raise ValueError("The number of bits to be retrieved as base64 " \
@@ -599,7 +605,7 @@ class BitStream:
                                string representing a hexadecimal number.
         """
         if(bit_length > (self.get_length() - self.get_current_pos())):
-            raise NotEnoughBitsInStreamError("Not enough bits in the bitstream.")
+           raise NotEnoughBitsInStreamError("Not enough bits in the bitstream.")
             
         if(bit_length % 4 != 0):
             raise ValueError("The number of bits to be retrieved as a " \
@@ -696,7 +702,7 @@ class BitStream:
                                 in the BitStream from the current position.
         """
         if(bit_length > (self.get_length() - self.get_current_pos())):
-            raise NotEnoughBitsInStreamError("Not enough bits in the bitstream.")
+           raise NotEnoughBitsInStreamError("Not enough bits in the bitstream.")
         
         # Read bit by bit and construct the string.
         bit_dump_str = ""
