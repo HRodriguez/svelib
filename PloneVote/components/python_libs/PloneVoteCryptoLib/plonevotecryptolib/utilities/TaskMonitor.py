@@ -43,8 +43,8 @@ class TaskMonitor:
 		- The start of a subtask
 		- The end of this task or one of its subtasks
 		- Each time the task advances X% progress towards completion
-		  (for tasks in which the length of the task can be correctly estimated 
-		  a priory)
+		  (for tasks in which the percent of the task already completed can be 
+		  reasonably estimated)
 		- Each time the task advances N ticks (minimal steps) towards completion
 	
 	Callbacks are called whenever the event for which they were registered 

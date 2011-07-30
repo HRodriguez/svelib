@@ -83,7 +83,7 @@ def run_tool(key_file, in_file, out_file):
 	if(len(in_file) <= 50):
 		short_in_filename = in_file
 	else:
-		short_in_filename = os.path.split(in_file)
+		short_in_filename = os.path.split(in_file)[-1]
 		if(len(short_in_filename) > 50):
 			# Do ellipsis shortening
 			short_in_filename = short_in_filename[0,20] + "..." + \
