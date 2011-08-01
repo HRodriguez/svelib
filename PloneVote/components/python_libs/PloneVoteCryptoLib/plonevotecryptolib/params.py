@@ -9,7 +9,7 @@
 #
 #  Originally written by: Lazaro Clapp
 #
-# ===================================================================
+# ============================================================================
 # LICENSE (MIT License - http://www.opensource.org/licenses/mit-license):
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -29,17 +29,17 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-# ===================================================================
+# ============================================================================
 
-# ===================================================================
+# ============================================================================
 # Imports, skip this section to "Basic parameters"
-# ===================================================================
+# ============================================================================
 from plonevotecryptolib.utilities.Enumerate import Enumerate
 
 
-# ===================================================================
+# ============================================================================
 # Basic parameters
-# ===================================================================
+# ============================================================================
 
 # Is this a debug build?
 # This will trigger additional verifications at the cost of speed.
@@ -64,9 +64,9 @@ SECURITY_LEVEL = SECURITY_LEVELS_ENUM.INSECURE
 
 
 
-# ===================================================================
+# ============================================================================
 # Expert parameters
-# ===================================================================
+# ============================================================================
 
 # Modify only if you understand the cryptography involved
 
@@ -91,9 +91,9 @@ CUSTOM_FALSE_PRIME_PROBABILITY = None
 CUSTOM_SHUFFLING_PROOF_SECURITY_PARAMETER = None
 
 
-# ===================================================================
+# ============================================================================
 # Generated parameters
-# ===================================================================
+# ============================================================================
 
 # DO NOT MODIFY
 # (unless you consider yourself a PloneVoteCryptoLib developer, of course)
@@ -146,8 +146,8 @@ else:
 
 # Used when a pre-generated cryptosystem is loaded
 # Much lower than FALSE_PRIME_PROBABILITY for performance reasons, but still 
-# high enough to detect most accidental corruptions or surreptitious alterations 
-# of cryptosystem or key files.
+# high enough to detect most accidental corruptions or surreptitious 
+# alterations of cryptosystem or key files.
 FALSE_PRIME_PROBABILITY_ON_VERIFICATION = {
 						SECURITY_LEVELS_ENUM.INSECURE : 1, #No verification
 						SECURITY_LEVELS_ENUM.LOWEST : 1e-3,
@@ -159,7 +159,8 @@ FALSE_PRIME_PROBABILITY_ON_VERIFICATION = {
 						}[SECURITY_LEVEL]
 
 if(CUSTOM_SHUFFLING_PROOF_SECURITY_PARAMETER != None):
-	SHUFFLING_PROOF_SECURITY_PARAMETER = CUSTOM_SHUFFLING_PROOF_SECURITY_PARAMETER
+	SHUFFLING_PROOF_SECURITY_PARAMETER = \
+	    CUSTOM_SHUFFLING_PROOF_SECURITY_PARAMETER
 else:
 	SHUFFLING_PROOF_SECURITY_PARAMETER = {
 						SECURITY_LEVELS_ENUM.INSECURE : 8,
