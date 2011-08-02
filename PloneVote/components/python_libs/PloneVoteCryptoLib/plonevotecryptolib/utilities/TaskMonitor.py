@@ -79,6 +79,20 @@ class TaskMonitor:
                                 (-1 means Unknown)
     """
     
+    def provides_percent_monitoring(self):
+        """
+        Return whether or not this task provides progress percent monitoring.
+        
+        When this method returns false, get_percent_completed() should always 
+        return 0.0 as the percentage already completed.
+        
+        Returns:
+            ans::bool -- True if the task provides information about the 
+                         percentage already completed.
+                         False if the task does not provide such information.
+        """
+        return (self.expected_ticks != -1)
+    
     def get_percent_completed(self):
         """
         Return the percentage of the task which has already been completed.
@@ -90,11 +104,12 @@ class TaskMonitor:
         Returns:
             percentage::float   -- The percentage of the task already completed.
         """
-        if(self.expected_ticks == -1):
-            return 0.0
-        else:
+        if(self.provides_percent_monitoring()):
+            assert (self.expected_ticks >= 0)
             # float division:
             return (100.0 * self.recorded_ticks) / self.expected_ticks
+        else:
+            return 0.0
             
     
     def __init__(self, task_name="Root", num_subtasks=0, expected_ticks = -1):
