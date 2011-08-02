@@ -108,7 +108,8 @@ def _is_safe_prime(p, probability=params.FALSE_PRIME_PROBABILITY):
 				Crypto.Util.number.isPrime(p, false_positive_prob=probability))
 				
 
-def _generate_safe_prime(nbits, probability=params.FALSE_PRIME_PROBABILITY, task_monitor=None):
+def _generate_safe_prime(nbits, probability=params.FALSE_PRIME_PROBABILITY, 
+                         task_monitor=None):
 		"""
 		Generate a safe prime of size nbits.
 		
@@ -194,7 +195,8 @@ def _is_generator(p, g):
 		g^{q} != 1 mod p, since only 2 or q divide p - 1, the order of 
 		Z_{p}^{*}.
 		
-		Should both those conditions be true, g must be a generator of Z_{p}^{*}.
+		Should both those conditions be true, g must be a generator of 
+		Z_{p}^{*}.
 		
 		References: I.N. Herstein pg. 35, 
 					"Handbook of Applied Cryptography" Algorithm 4.80
@@ -314,21 +316,21 @@ class EGCryptoSystem:
 		
 	def get_nbits(self):
 		"""
-		Return the number of bits used for the key size by this ElGamal instance.
+		Return the number of bits used as the key size by this ElGamal instance.
 		"""
 		if(not self._constructed): raise EGCSUnconstructedStateError()
 		return self._nbits	
 		
 	def get_prime(self):
 		"""
-		Return the prime p used for the key size by this ElGamal instance.
+		Return the prime p used by this ElGamal instance.
 		"""
 		if(not self._constructed): raise EGCSUnconstructedStateError()
 		return self._prime	
 		
 	def get_generator(self):
 		"""
-		Return the generator used for the key size by this ElGamal instance.
+		Return the generator used by this ElGamal instance.
 		
 		The generator of the Z_{p}^{*} cyclic group, where p is the same as in 
 		self.get_prime().
@@ -429,7 +431,8 @@ class EGCryptoSystem:
 		Arguments:
 			nbits::int	-- Bit size of the prime to use for the ElGamal scheme.
 						   Higher is safer but slower.
-						   Must be a multiple of eight (ie. expressible in bytes).
+						   Must be a multiple of eight (ie. expressible in 
+						   bytes).
 			task_monitor::TaskMonitor	-- A Task Monitor object to monitor the 
 										   cryptosystem generation process.
 						   
@@ -450,14 +453,18 @@ class EGCryptoSystem:
 									percent_of_parent = 80.0)
 			cryptosystem._prime = _generate_safe_prime(cryptosystem._nbits, 
 													   task_monitor=prime_task)
+			prime_task.end_task()
 		else:
 			cryptosystem._prime = _generate_safe_prime(cryptosystem._nbits)
 			
 		# Now we need the generator for the Z_{p}^{*} cyclic group
 		if(task_monitor != None):
-			generator_task = task_monitor.new_subtask("Obtain a generator for the cyclic group", 
+			generator_task = task_monitor.new_subtask(\
+			                        "Obtain a generator for the cyclic group", 
 									percent_of_parent = 20.0)
-			cryptosystem._generator = _get_generator(cryptosystem._prime, generator_task)
+			cryptosystem._generator = _get_generator(cryptosystem._prime, 
+			                                         generator_task)
+			generator_task.end_task()
 		else:
 			cryptosystem._generator = _get_generator(cryptosystem._prime)
 		
@@ -481,7 +488,8 @@ class EGCryptoSystem:
 		
 		Arguments:
 			nbits::int	-- Bit size of the prime to use for the ElGamal scheme. 
-						   Must be a multiple of eight (ie. expressible in bytes).
+						   Must be a multiple of eight (ie. expressible in 
+						   bytes).
 			prime::long -- A nbits-long safe prime 
 						   (that is (prime-1)/2 is also prime).
 			generator:long -- A generator of the Z_{p}^{*} cyclic group.
@@ -523,8 +531,8 @@ class EGCryptoSystem:
 			cryptosystem._generator = generator
 		else:
 			raise NotAGeneratorError(prime, generator,
-				"The number given as generator g for the ElGamal cryptosystem " \
-				"is not a generator of Z_{p}^{*}.")
+				"The number given as generator g for the ElGamal " \
+				"cryptosystem is not a generator of Z_{p}^{*}.")
 		
 		# Mark the object as constructed
 		cryptosystem._constructed = True
@@ -650,9 +658,9 @@ class EGStub:
 		Unpack the EGStub into a full cryptosystem.
 		
 		This method obtains an EGCryptoSystem from the current EGStub instance, 
-		verifying the correctness and security of the parameters in the process. 
-		The resulting EGCryptoSystem can then be used to generate a private 
-		and public key pair to use for encryption/decryption.
+		verifying the correctness and security of the parameters in the 
+		process. The resulting EGCryptoSystem can then be used to generate a 
+		private and public key pair to use for encryption/decryption.
 		
 		Returns:
 			cryptosys::EGCryptoSystem	-- A verified cryptosystem using the 
@@ -800,7 +808,8 @@ class EGStub:
 				"cryptosystem instance's prime")
 				
 		if(len(prime_element.childNodes) != 1 or 
-			prime_element.childNodes[0].nodeType != prime_element.childNodes[0].TEXT_NODE):
+			prime_element.childNodes[0].nodeType != \
+			prime_element.childNodes[0].TEXT_NODE):
 			
 			raise InvalidPloneVoteCryptoFileError(filename,  
 				"The <CryptoSystemScheme> specification must include the " \
@@ -816,7 +825,8 @@ class EGStub:
 				"cryptosystem instance's generator")
 				
 		if(len(generator_element.childNodes) != 1 or 
-			generator_element.childNodes[0].nodeType != generator_element.childNodes[0].TEXT_NODE):
+			generator_element.childNodes[0].nodeType != \
+			generator_element.childNodes[0].TEXT_NODE):
 			
 			raise InvalidPloneVoteCryptoFileError(filename,  
 				"The <CryptoSystemScheme> specification must include the " \
@@ -868,7 +878,8 @@ class EGStub:
 				"a name element")
 				
 		if(len(name_element.childNodes) != 1 or 
-			name_element.childNodes[0].nodeType != name_element.childNodes[0].TEXT_NODE):
+			name_element.childNodes[0].nodeType != \
+			name_element.childNodes[0].TEXT_NODE):
 			
 			raise InvalidPloneVoteCryptoFileError(filename, 
 				"A PloneVoteCryptoLib stored cryptosystem file must contain " \
@@ -884,7 +895,8 @@ class EGStub:
 				"a description element")
 				
 		if(len(description_element.childNodes) != 1 or 
-			description_element.childNodes[0].nodeType != description_element.childNodes[0].TEXT_NODE):
+			description_element.childNodes[0].nodeType != \
+			description_element.childNodes[0].TEXT_NODE):
 			
 			raise InvalidPloneVoteCryptoFileError(filename, 
 				"A PloneVoteCryptoLib stored cryptosystem file must contain " \
