@@ -191,7 +191,9 @@ def _is_generator(p, g):
 		g^{i} = 1 mod p => i | (p - 1)
 		
 		Since p - 1 = 2q, we need only check that g^{2} != 1 mod p and 
-		g^{q} != mod p, since only 2 or q divide p - 1, the order of Z_{p}^{*}. 
+		g^{q} != 1 mod p, since only 2 or q divide p - 1, the order of 
+		Z_{p}^{*}.
+		
 		Should both those conditions be true, g must be a generator of Z_{p}^{*}.
 		
 		References: I.N. Herstein pg. 35, 
@@ -538,6 +540,7 @@ class EGCryptoSystem:
 			name::string	-- Short name of the cryptosystem.
 			description::string	-- Description of the cryptosystem.
 		"""
+		if(not self._constructed): raise EGCSUnconstructedStateError()
 		return EGStub(name, description, self._nbits, self._prime, 
 					  self._generator)
 	
