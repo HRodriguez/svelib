@@ -384,7 +384,8 @@ class PublicKey:
 			pass		# this is the expected value, lets continue parsing
 		elif(type_attribute == "threshold"):
 			# We load this file as a threshold key instead!
-			from plonevotecryptolib.Threshold.ThresholdPublicKey import ThresholdPublicKey
+			from plonevotecryptolib.Threshold.ThresholdPublicKey \
+			                            import ThresholdPublicKey
 			return ThresholdPublicKey.from_file(filename)
 		else:
 			raise InvalidPloneVoteCryptoFileError(filename, 
