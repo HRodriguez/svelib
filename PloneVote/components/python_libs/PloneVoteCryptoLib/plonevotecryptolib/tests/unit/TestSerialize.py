@@ -93,9 +93,10 @@ class TestSerialize(unittest.TestCase):
         # Delete the temporary file
         os.remove(self.filename)
     
-    def test_xml_serialize_to_file(self):
+    def test_xml_serialize_deserialize_file(self):
         """
-        Test that we can serialize some data to an XML file using XMLSerializer.
+        Test that we can serialize some data to an XML file using XMLSerializer 
+        and deserialize it back.
         """
         # Create a new XMLSerializer object using the person structure 
         # definition dictionary.
@@ -117,6 +118,14 @@ class TestSerialize(unittest.TestCase):
         }
         
         xmlSerializer.serialize_to_file(self.filename, data)
+        
+        # Recover the data from file using a new XMLSerializer with the same 
+        # structure definition dictionary
+        xmlSerializer2 = serialize.XMLSerializer(person_structure_definition)
+        deserialized_data = xmlSerializer2.deserialize_from_file(self.filename)
+        
+        # Check that the recovered data is the same as that original written
+        self.assertEqual(deserialized_data, data)
         
 
 

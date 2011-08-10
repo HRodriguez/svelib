@@ -185,7 +185,7 @@ def _parse_schema_tuple(schema_tuple):
     # that the type of schema_tuple is actually tuple. If not, we treat the 
     # value as if it where the single element of a tuple (e.g. (None) instead 
     # of None).
-    if(type(schema_tuple) is not tuple):
+    if(not isinstance(schema_tuple, tuple)):
         min_occurrences = 0
         max_occurrences = 0
         sub_sd_node = schema_tuple
@@ -240,7 +240,8 @@ def _check_validate_structure(sd_node):
                 "%s: min_occurrences is %d, max_occurrences is %d. " \
                 "A serialize structure definition dictionary must never " \
                 "define a key where min_occurrences and/or max_occurrences " \
-                "have negative values." % name, max_occurrences, min_ocurrences)
+                "have negative values." % \
+                (name, max_occurrences, min_ocurrences))
         
         if(max_occurrences != 0 and max_occurrences < min_occurrences):
             raise InvalidSerializeStructureDefinitionError(\
@@ -248,11 +249,11 @@ def _check_validate_structure(sd_node):
                 "%s: min_occurrences is %d, max_occurrences is %d. " \
                 "A serialize structure definition dictionary must never " \
                 "define a key where min_occurrences is greater than " \
-                "max_occurrences." % name, max_occurrences, min_ocurrences)
+                "max_occurrences." % (name, max_occurrences, min_ocurrences))
         
         if(sub_sd_node is None):
             pass    
-        elif(type(sub_sd_node) is dict):
+        elif(isinstance(sub_sd_node, dict)):
             _check_validate_structure(sub_sd_node)
         else:
             raise InvalidSerializeStructureDefinitionError(\
@@ -263,7 +264,7 @@ def _check_validate_structure(sd_node):
                 "either None (indicating a string/text element) or another " \
                 "structure definition dictionary indicating a composite " \
                 "sub-structure. For more information, see the documentation " \
-                "for the serialize module." % name, str(type(sub_sd_node)))
+                "for the serialize module." % (name, str(type(sub_sd_node))))
     
 
 def _check_data_matches_structure(sd_node, data_node):
@@ -334,7 +335,7 @@ def _check_data_matches_structure(sd_node, data_node):
         value = data_node[name]
         
         # Get the number of actual occurrences of the schema name
-        if(type(value) is list):
+        if(isinstance(value, list)):
             occurrences = len(value)
         else:
             occurrences = 1
@@ -353,7 +354,7 @@ def _check_data_matches_structure(sd_node, data_node):
                 "structure definition dictionary. According the structure " \
                 "definition, the element \"%s\" must occur between %d and %d " \
                 "times. But %d occurrences of that element where found in " \
-                "the data." % name, min_occurrences, max_occ_str, occurrences)
+                "the data." % (name, min_occurrences, max_occ_str, occurrences))
         
         # Two cases: either sub_sd_node is None and thus this is a "leaf" of  
         # the structure dictionary, or sub_sd_node is another structure 
@@ -361,18 +362,18 @@ def _check_data_matches_structure(sd_node, data_node):
         if(sub_sd_node == None):
             # Two cases: either value is a string or a list of strings, both 
             # are fine. No other type is allowed.
-            if(type(value) is str):
+            if(isinstance(value, basestring)):
                 pass
-            elif(type(value) is list):
+            elif(isinstance(value, list)):
                 for s in value:
-                    if(type(s) is not str):
+                    if(not isinstance(s, basestring)):
                         raise InvalidSerializeDataError(\
                             "The given data doesn't match the corresponding " \
                             "serialize structure definition dictionary. " \
                             "According the structure definition, element " \
                             "\"%s\" is a leaf element and thus its value " \
                             "must be a string. The data has the value %s for " \
-                            "this element." % name, s)
+                            "this element." % (name, s))
             else:
                 # Invalid value type for a data dictionary
                 raise InvalidSerializeDataError(\
@@ -380,15 +381,15 @@ def _check_data_matches_structure(sd_node, data_node):
                     "structure definition dictionary. According the structure "\
                     "definition, element \"%s\" is a leaf element and thus " \
                     "its value must be a string. The data has the value %s " \
-                    "for this element." % name, value)
+                    "(%s) for this element." % (name, value, type(value)))
         else:
             # Two cases: either value is a dictionary or a list of dictionaries
-            if(type(value) is dict):
+            if(isinstance(value, dict)):
                 # call this function recursively for sub_sd_node and value
                 _check_data_matches_structure(sub_sd_node, value)
-            elif(type(value) is list):
+            elif(isinstance(value, list)):
                 for v_element in value:
-                    if(type(v_element) is dict):
+                    if(isinstance(v_element, dict)):
                         _check_data_matches_structure(sub_sd_node, v_element)
                     else:
                         raise InvalidSerializeDataError(\
@@ -398,7 +399,7 @@ def _check_data_matches_structure(sd_node, data_node):
                             "\"%s\" is a composite element and thus its value "\
                             "must be a dictionary matching the element's " \
                             "structure definition. The data has the value %s " \
-                            "for this element." % name, v_element)
+                            "for this element." % (name, v_element))
             else:
                 # Invalid value type for a data dictionary
                 raise InvalidSerializeDataError(\
@@ -407,7 +408,7 @@ def _check_data_matches_structure(sd_node, data_node):
                     "definition, element \"%s\" is a composite element and " \
                     "thus its value must be a dictionary matching the " \
                     "element's structure definition. The data has the value " \
-                    "%s for this element." % name, value)
+                    "%s for this element." % (name, value))
 
 # ============================================================================
 # Main (non-exception) classes:
@@ -515,7 +516,7 @@ class XMLSerializer(BaseSerializer):
         """
         # Three options: element_value is either a dictionary, a list or a 
         # string
-        if(type(element_value) is dict):
+        if(isinstance(element_value, dict)):
             # We first create a single new element named element_name under 
             # parent_node.
             element = xml_document.createElement(element_name)
@@ -527,12 +528,12 @@ class XMLSerializer(BaseSerializer):
                 self._write_to_dom_element(xml_document, element, child_name, 
                                            child_value)
                 
-        elif(type(element_value) is list):
+        elif(isinstance(element_value, list)):
             # We repeat this call, with the same parent and element_name for  
             # each value inside the list
             # (list means "these are all different elements with the same name")
             for single_ev in element_value:
-                assert (type(single_ev) is not list), \
+                assert (not isinstance(single_ev, list)), \
                     "The given data dictionary does not match the format " \
                     "for data dictionaries."
                 self._write_to_dom_element(xml_document, parent_node, 
@@ -607,6 +608,7 @@ class XMLSerializer(BaseSerializer):
 
         return doc
         
+        
     def serialize_to_file(self, filename, data):
         """
         Serialize the given data into a new XML file.
@@ -648,6 +650,97 @@ class XMLSerializer(BaseSerializer):
         """
         xml_document = self.serialize_to_dom(data)
         return xml_document.toprettyxml()
+        
+    def _read_from_dom_element(self, dom_element):
+        """
+        """
+        # Get all nodes under the current element
+        child_nodes = dom_element.childNodes
+        
+        # Get those nodes that are elements and those that are text into two 
+        # separate lists (note that attributes and some other node types are 
+        # completely ignored by XMLSerializer).
+        child_elements = \
+            [e for e in child_nodes if e.nodeType == e.ELEMENT_NODE]
+        child_text_nodes = \
+            [e for e in child_nodes if e.nodeType == e.TEXT_NODE]
+        
+        # Two valid cases: either dom_element has child element nodes or a 
+        # single string node (ie. dom_element is a leaf element).
+        # Let's handle the second case first:
+        if(len(child_elements) == 0):
+            if(len(child_text_nodes) == 1):
+                # If dom_element's only child node is a text node, then we  
+                # return its string value. Removing padding whitespace 
+                # (e.g. '\n', '\t')
+                # We return the string as utf-8 instead of a unicode string
+                return child_nodes[0].nodeValue.strip().encode('utf-8')
+            else:
+                # No element nodes as children and not a single text node as 
+                # dom_element's contents... this is invalid.
+                raise InvalidSerializeDataError(\
+                    "The given XML document does not seem to contain a well " \
+                    "formed serialization of any valid serializable data " \
+                    "dictionary. Well formed serializations created with " \
+                    "XMLSerializer are such that all XML elements contain "\
+                    "either more elements or simple textual/string contents; " \
+                    "element %s doesn't meet this requirements." % \
+                    dom_element.tagName)     
+        
+        # We now have only the case in which dom_element has child element nodes
+        assert len(child_elements) > 0, \
+            "child_elements expected to be non-empty if reaching this line."
+            
+        # Create a serializable data dictionary to hold the data below 
+        # dom_element
+        data_tree = {}
+            
+        # We group the elements by name in order to identify repeating names
+        named_nodes = {}
+        for node in child_elements:
+            name = node.tagName
+            if(not named_nodes.has_key(name)):
+                named_nodes[name] = []
+            named_nodes[name].append(node)
+            
+        # For each existing node name
+        for name, node_list in named_nodes.items():
+            if(len(node_list) == 1):
+                # For a single sub node with that name, recursively read its 
+                # contents as the value for that name in the serializable data 
+                # dictionary.
+                data_tree[name] = self._read_from_dom_element(node_list[0])
+            else:
+                # For multiple elements with the same name, read them into a 
+                # list as the value for that name in the serializable data 
+                # dictionary.
+                data_tree[name] = []
+                for node in node_list:
+                    data_tree[name].append(self._read_from_dom_element(node))
+        
+        # Return the data read at this level            
+        return data_tree
+            
+        
+    def deserialize_from_dom(self, dom):
+        """
+        """
+        data = self._read_from_dom_element(dom)
+        self._check_data(data)
+        return data
+        
+    def deserialize_from_file(self, filename):
+        """
+        """
+        dom = xml.dom.minidom.parse(filename)
+        return self.deserialize_from_dom(dom)
+        
+    def deserialize_from_string(self, string):
+        """
+        """
+        dom = xml.dom.minidom.parse(string)
+        return self.deserialize_from_dom(dom)
+        
 
         
 class JSONSerializer(BaseSerializer):
