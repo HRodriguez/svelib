@@ -117,7 +117,6 @@ class TestSerialize(unittest.TestCase):
         }
         
         xmlSerializer.serialize_to_file(self.filename, data)
-        import pdb; pdb.set_trace()   
         
 
 
