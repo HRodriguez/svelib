@@ -50,6 +50,7 @@ import plonevotecryptolib.utilities.serialize as serialize
 # Example structure definitions:
 # ============================================================================
 
+# A (simplified) structure definition for a "person" object
 person_structure_definition = {
         "person" : (1, 1, {                 # Root element
             "names" : (1, 1, {              # 1 "names" node allowed, exactly
@@ -58,7 +59,16 @@ person_structure_definition = {
                 "last" : (1, None)          # 1 or more last names allowed
             }),
             "age" : (1, 1, None)            # 1 age allowed, exactly
-        }),
+        })
+    }
+
+# A structure definition for a collection of books  
+books_structure_definition = {
+        "book" : (1, {                      # 1 or more "book" elements
+            "title" : (1, 1, None),         # 1 title allowed, exactly
+            "author" : (1, None),           # 1 or more authors allowed
+            "year" : (1, 1, None)           # 1 year allowed, exactly
+        })
     }
     
 # ============================================================================
@@ -126,6 +136,331 @@ class TestSerialize(unittest.TestCase):
         
         # Check that the recovered data is the same as that original written
         self.assertEqual(deserialized_data, data)
+    
+    def test_xml_serialize_deserialize_file_books(self):
+        """
+        Test that we can serialize some data to an XML file using XMLSerializer 
+        and deserialize it back, using the books_structure_definition 
+        structure definition dictionary.
+        
+        This structure definition tests a few features not tested when using 
+        person_structure_definition, namely:
+            * A structure that has no single root element (multiple 'book' 
+              elements at root level) while XML requires a single root element.
+            * A composite element that can have more than one occurrences.
+        """
+        # Create a new XMLSerializer object using the books structure 
+        # definition dictionary.
+        xmlSerializer = serialize.XMLSerializer(books_structure_definition)
+        
+        # Use this XMLSerializer to serialize some valid books data into an 
+        # XML file at self.filename
+        data = {
+            "book" : [{
+                    "title" : "Introduction to Algorithms",
+                    "author" : ["Thomas H. Cormen",
+                            "Charles E. Leiserson",
+                            "Ronald L. Rivest",
+                            "Clifford Stein"
+                        ],
+                    "year" : "1990"    
+                },
+                {
+                    "title" : "Design Patterns",
+                    "author" : ["Erich Gamma",
+                            "Richard Helm",
+                            "Ralph Johnson",
+                            "John Vlissides"
+                        ],
+                    "year" : "1994"                
+                }]
+        }
+        
+        xmlSerializer.serialize_to_file(self.filename, data)
+        
+        # Recover the data from file using a new XMLSerializer with the same 
+        # structure definition dictionary
+        xmlSerializer2 = serialize.XMLSerializer(books_structure_definition)
+        deserialized_data = xmlSerializer2.deserialize_from_file(self.filename)
+        
+        # Check that the recovered data is the same as that original written
+        self.assertEqual(deserialized_data, data)
+        
+        # Also check that deserializing with the wrong structure definition 
+        # results in an exception
+        xmlSerializer3 = serialize.XMLSerializer(person_structure_definition)        
+        self.assertRaises(serialize.InvalidSerializeDataError, 
+                          xmlSerializer3.deserialize_from_file, self.filename)
+        
+    def test_xml_serialize_deserialize_string(self):
+        """
+        Test that we can serialize some data to an XML string using 
+        XMLSerializer and deserialize it back.
+        """
+        # Create a new XMLSerializer object using the person structure 
+        # definition dictionary.
+        xmlSerializer = serialize.XMLSerializer(person_structure_definition)
+        
+        # Use this XMLSerializer to serialize some valid person data into an 
+        # XML file at self.filename
+        data = {
+            "person" : {
+                "names" : {
+                    "first" : "Jane",
+                    "middle" : "Ann",
+                    "last" : "Smith"
+                },
+                "age" : "99"
+            }
+        }
+        
+        serialized_data = xmlSerializer.serialize_to_string(data)
+        
+        # Recover the data from file using a new XMLSerializer with the same 
+        # structure definition dictionary
+        xmlSerializer2 = serialize.XMLSerializer(person_structure_definition)
+        deserialized_data = \
+            xmlSerializer2.deserialize_from_string(serialized_data)
+        
+        # Check that the recovered data is the same as that original written
+        self.assertEqual(deserialized_data, data)
+        
+    def test_invalid_structure_definition_dictionaries(self):
+        """
+        Test that constructing a serializer object with an invalid structure 
+        definition dictionary passed to its constructor results in 
+        InvalidSerializeStructureDefinitionError being raised.
+        """
+        # Let's abbreviate the exception name:
+        invStructErr = serialize.InvalidSerializeStructureDefinitionError
+        
+        # Invalid structure definition: not a dictionary
+        # This one actually raises AttributeError, but may raise any exception
+        inv_structure = object()
+        self.assertRaises(Exception, serialize.XMLSerializer, inv_structure)
+        
+        # Invalid structure definition: none tuple or list values for keys
+        inv_structure = {
+            "root" : (1, 1, {
+                "A" : "InvalidData",
+                "B" : (1, 1, None) 
+            }),
+        }
+        self.assertRaises(invStructErr, serialize.XMLSerializer, inv_structure)
+        
+        # Invalid structure definition: tuples with 0 elements
+        inv_structure = {
+            "root" : (1, 1, {
+                "A" : (),
+                "B" : (1, 1, None) 
+            }),
+        }
+        self.assertRaises(invStructErr, serialize.XMLSerializer, inv_structure)
+        
+        # Invalid structure definition: tuples with > 3 elements
+        inv_structure = {
+            "root" : (1, 1, {
+                "A" : (1, 1, None, None),
+                "B" : (1, 1, None) 
+            }),
+        }
+        self.assertRaises(invStructErr, serialize.XMLSerializer, inv_structure)
+        
+        # Invalid structure definition: negative min_occurrences & 
+        # max_occurrences
+        inv_structure = {
+            "root" : (1, 1, {
+                "A" : (-1, -1, None),
+                "B" : (1, 1, None) 
+            }),
+        }
+        self.assertRaises(invStructErr, serialize.XMLSerializer, inv_structure)
+        
+        # Invalid structure definition: min_occurrences > max_occurrences
+        inv_structure = {
+            "root" : (1, 1, {
+                "A" : (3, 2, None),
+                "B" : (1, 1, None) 
+            }),
+        }
+        self.assertRaises(invStructErr, serialize.XMLSerializer, inv_structure)
+        
+        # Invalid structure definition: sub structure not None or a dict
+        inv_structure = {
+            "root" : (1, 1, {
+                "A" : (1, 1, "InvalidData"),
+                "B" : (1, 1, None) 
+            }),
+        }
+        self.assertRaises(invStructErr, serialize.XMLSerializer, inv_structure)
+        
+    def test_invalid_data_dictionaries(self):
+        """
+        Test that passing data to a serializer object that doesn't match the 
+        structure definition dictionary associated with that serializer 
+        causes InvalidSerializeDataError to be raised.
+        """
+        # Let's abbreviate the exception name:
+        invDataErr = serialize.InvalidSerializeDataError
+        
+        # Create a new XMLSerializer object using the person structure 
+        # definition dictionary.
+        xmlSerializer = serialize.XMLSerializer(person_structure_definition)
+        
+        # Invalid data: not a dictionary
+        # This one actually raises AttributeError, but may raise any exception
+        inv_data = object()
+        self.assertRaises(Exception, xmlSerializer.serialize_to_string, 
+                          inv_data)
+        
+        # Invalid data: missing required element
+        inv_data = {
+            "person" : {
+                "names" : {
+                    "first" : "Jane",
+                    "middle" : "Ann",
+                    "last" : "Smith"
+                }
+            }
+        }
+        self.assertRaises(invDataErr, xmlSerializer.serialize_to_string, 
+                          inv_data)
+        
+        # Invalid data: unknown element appears
+        inv_data = {
+            "person" : {
+                "names" : {
+                    "first" : "Jane",
+                    "middle" : "Ann",
+                    "last" : "Smith",
+                    "nickname" : "R."
+                },
+                "age" : "99"
+            }
+        }
+        self.assertRaises(invDataErr, xmlSerializer.serialize_to_string, 
+                          inv_data)
+        
+        # Invalid data: invalid object
+        inv_data = {
+            "person" : {
+                "names" : {
+                    "first" : "Jane",
+                    "middle" : "Ann",
+                    "last" : 1459   # Not a string (!)
+                },
+                "age" : "99"
+            }
+        }
+        self.assertRaises(invDataErr, xmlSerializer.serialize_to_string, 
+                          inv_data)
+        
+        # Invalid data: invalid object inside a list
+        inv_data = {
+            "person" : {
+                "names" : {
+                    "first" : "Jane",
+                    "middle" : "Ann",
+                    "last" : ["Smith", [object()], "Watson"]
+                },
+                "age" : "99"
+            }
+        }
+        self.assertRaises(invDataErr, xmlSerializer.serialize_to_string, 
+                          inv_data)
+        
+        # Invalid data: string value for an element defined as composite
+        inv_data = {
+            "person" : {
+                "names" : "Jane Ann Smith",
+                "age" : "99"
+            }
+        }
+        self.assertRaises(invDataErr, xmlSerializer.serialize_to_string, 
+                          inv_data)
+        
+        # Invalid data: element occurs more times than max_occurrences
+        inv_data = {
+            "person" : {
+                "names" : {
+                    "first" : "Jane",
+                    "middle" : "Ann",
+                    "last" : "Smith"
+                },
+                "age" : ["99", "12"]
+            }
+        }
+        self.assertRaises(invDataErr, xmlSerializer.serialize_to_string, 
+                          inv_data)
+        
+        # Invalid data: element occurs less times than min_occurrences
+        # this requires a different structure definition dictionary: 
+        structure_def = {
+            "root" : (1, 1, {
+                "A" : (2, None), # 2 to infinite occurrences are valid
+                "B" : (1, 1, None) 
+            }),
+        }
+        inv_data = {
+            "root" : {
+                "A" : "13",
+                "B" : "12"
+            }
+        }
+        newSerializer = serialize.XMLSerializer(structure_def)
+        self.assertRaises(invDataErr, newSerializer.serialize_to_string, 
+                          inv_data)
+        
+        # Invalid data: string value for an element defined as composite in 
+        # a list of composite elements
+        # this requires a different structure definition dictionary: 
+        structure_def = {
+            "root" : (1, 1, {
+                "A" : (1, { # 1 to infinite occurrences are valid
+                    "C" : (1, 1, None)
+                }),
+                "B" : (1, 1, None) 
+            }),
+        }
+        inv_data = {
+            "root" : {
+                "A" : [{
+                        "C" : "13"
+                    },
+                    "15"
+                ],
+                "B" : "12"
+            }
+        }
+        newSerializer = serialize.XMLSerializer(structure_def)
+        self.assertRaises(invDataErr, newSerializer.serialize_to_string, 
+                          inv_data)
+        
+        
+    ## =======================================================================
+    ## Test exception classes:
+    ## =======================================================================
+    
+    def test_serialize_dot_py_exceptions(self):
+        """
+        Test that all exceptions declared in serialize.py can be constructed, 
+        raised and queried for an exception message.
+        """
+        # This test is here mostly for the sake of code coverage
+        
+        message = "My message: ñ(&(%%9_\n\t"
+        for ExceptionCls in (serialize.InvalidSerializeDataError, 
+                           serialize.InvalidSerializeStructureDefinitionError):
+        
+            was_raised = False
+            
+            try:
+                raise ExceptionCls(message)
+            except ExceptionCls, e:
+                was_raised = True
+                self.assertEqual(str(e), message)
+                
+            self.assertEqual(was_raised, True)
         
 
 

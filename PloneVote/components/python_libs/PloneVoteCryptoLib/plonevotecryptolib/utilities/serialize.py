@@ -77,7 +77,7 @@ import xml.dom.minidom
 
 __all__ = ["XMLSerializer", "InvalidSerializeStructureDefinitionError"]
 
-DEFAULT_ROOT_ELEMENT_NAME = "SerializedDataRoot"
+DUMMY_ROOT_ELEMENT_NAME = "s__SerializedDataRoot__s"
 
 # ============================================================================
 # Exception classes:
@@ -189,7 +189,7 @@ def _parse_schema_tuple(schema_tuple):
         min_occurrences = 0
         max_occurrences = 0
         sub_sd_node = schema_tuple
-    elif(len(schema_tuple) == 1):
+    elif(len(schema_tuple) == 1): # This case might be unreachable
         min_occurrences = 0
         max_occurrences = 0
         sub_sd_node = schema_tuple[0]
@@ -241,7 +241,7 @@ def _check_validate_structure(sd_node):
                 "A serialize structure definition dictionary must never " \
                 "define a key where min_occurrences and/or max_occurrences " \
                 "have negative values." % \
-                (name, max_occurrences, min_ocurrences))
+                (name, max_occurrences, min_occurrences))
         
         if(max_occurrences != 0 and max_occurrences < min_occurrences):
             raise InvalidSerializeStructureDefinitionError(\
@@ -249,7 +249,7 @@ def _check_validate_structure(sd_node):
                 "%s: min_occurrences is %d, max_occurrences is %d. " \
                 "A serialize structure definition dictionary must never " \
                 "define a key where min_occurrences is greater than " \
-                "max_occurrences." % (name, max_occurrences, min_ocurrences))
+                "max_occurrences." % (name, max_occurrences, min_occurrences))
         
         if(sub_sd_node is None):
             pass    
@@ -307,7 +307,7 @@ def _check_data_matches_structure(sd_node, data_node):
             valid_elements = sd_node.keys()
             for i in range(0, len(valid_elements) - 1):
                 error_msg += valid_elements[i] + ", "
-            error_msg += valid_keys[len(valid_elements) - 1] + "."
+            error_msg += valid_elements[len(valid_elements) - 1] + "."
             # Raise the exception
             raise InvalidSerializeDataError(error_msg)
     
@@ -341,8 +341,8 @@ def _check_data_matches_structure(sd_node, data_node):
             occurrences = 1
             
         # Check that this is a valid number of occurrences
-        if(max_occurrences != 0 and not
-           (min_occurrences <= occurrences <= max_occurrences)):
+        if((occurrences < min_occurrences) or
+           (max_occurrences != 0 and (occurrences > max_occurrences))):
            
             if(max_occurrences == 0):
                 max_occ_str = "infinite"
@@ -352,7 +352,7 @@ def _check_data_matches_structure(sd_node, data_node):
             raise InvalidSerializeDataError(\
                 "The given data doesn't match the corresponding serialize " \
                 "structure definition dictionary. According the structure " \
-                "definition, the element \"%s\" must occur between %d and %d " \
+                "definition, the element \"%s\" must occur between %d and %s " \
                 "times. But %d occurrences of that element where found in " \
                 "the data." % (name, min_occurrences, max_occ_str, occurrences))
         
@@ -585,9 +585,10 @@ class XMLSerializer(BaseSerializer):
             root_element_def_tuple = self.structure_definition.items()[0][1]
             (min_occurrences, max_occurrences, sd_node) = \
                             _parse_schema_tuple(root_element_def_tuple)
-            if(max_occurrences > 1):
+            if(max_occurrences != 1):
                 # More than one root element of the same kind allowed by 
-                # structure def
+                # structure def (note that max_occurrences == 0 means any 
+                # number of occurrences allowed)
                 structure_has_single_root = False
             
         
@@ -600,7 +601,7 @@ class XMLSerializer(BaseSerializer):
         else:
             # Create a dummy root element for the document and then write the 
             # structure's top level elements within this dummy element.
-            root_element = doc.createElement(DEFAULT_ROOT_ELEMENT_NAME)
+            root_element = doc.createElement(DUMMY_ROOT_ELEMENT_NAME)
             doc.appendChild(root_element)
             for element_name, element_value in data.items():
                 self._write_to_dom_element(doc, root_element, element_name, 
@@ -685,7 +686,7 @@ class XMLSerializer(BaseSerializer):
                     "XMLSerializer are such that all XML elements contain "\
                     "either more elements or simple textual/string contents; " \
                     "element %s doesn't meet this requirements." % \
-                    dom_element.tagName)     
+                    dom_element.tagName)
         
         # We now have only the case in which dom_element has child element nodes
         assert len(child_elements) > 0, \
@@ -726,6 +727,24 @@ class XMLSerializer(BaseSerializer):
         """
         """
         data = self._read_from_dom_element(dom)
+        
+        assert len(data) == 1, \
+            "A valid XML document must have a single root element."
+        
+        # Check for dummy root element in the XML
+        root_element_name = data.keys()[0]
+        if(root_element_name == DUMMY_ROOT_ELEMENT_NAME):
+            # The root element is a dummy element, remove it
+            if(not isinstance(data[root_element_name], dict)):
+                raise InvalidSerializeDataError(\
+                    "The given XML document does not seem to contain a well " \
+                    "formed serialization of any valid serializable data " \
+                    "dictionary. The dummy element %s should always be " \
+                    "unique and contain other elements inside." % \
+                    DUMMY_ROOT_ELEMENT_NAME)
+            data = data[root_element_name]
+            
+        
         self._check_data(data)
         return data
         
@@ -738,7 +757,7 @@ class XMLSerializer(BaseSerializer):
     def deserialize_from_string(self, string):
         """
         """
-        dom = xml.dom.minidom.parse(string)
+        dom = xml.dom.minidom.parseString(string)
         return self.deserialize_from_dom(dom)
         
 
