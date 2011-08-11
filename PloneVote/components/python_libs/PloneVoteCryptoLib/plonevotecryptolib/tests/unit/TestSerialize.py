@@ -191,6 +191,7 @@ class TestSerialize(unittest.TestCase):
         xmlSerializer3 = serialize.XMLSerializer(person_structure_definition)        
         self.assertRaises(serialize.InvalidSerializeDataError, 
                           xmlSerializer3.deserialize_from_file, self.filename)
+    
         
     def test_xml_serialize_deserialize_string(self):
         """
@@ -202,7 +203,7 @@ class TestSerialize(unittest.TestCase):
         xmlSerializer = serialize.XMLSerializer(person_structure_definition)
         
         # Use this XMLSerializer to serialize some valid person data into an 
-        # XML file at self.filename
+        # XML string
         data = {
             "person" : {
                 "names" : {
@@ -216,7 +217,7 @@ class TestSerialize(unittest.TestCase):
         
         serialized_data = xmlSerializer.serialize_to_string(data)
         
-        # Recover the data from file using a new XMLSerializer with the same 
+        # Deserialize the data using a new XMLSerializer with the same 
         # structure definition dictionary
         xmlSerializer2 = serialize.XMLSerializer(person_structure_definition)
         deserialized_data = \
@@ -224,7 +225,36 @@ class TestSerialize(unittest.TestCase):
         
         # Check that the recovered data is the same as that original written
         self.assertEqual(deserialized_data, data)
+    
+    def test_structure_definition_different_root_elements(self):
+        """
+        Test that serialization and deserialization work for a structure 
+        definition dictionary that has multiple distinct elements at the root 
+        level (no single root and no multiple roots with the same element name).
+        """
+        # Use the following sample structure definition
+        structure_def = {
+            "A" : (1, 1, None),
+            "B" : (1, 1, None)
+        }
+        # And corresponding data
+        data = {"A": "Test1", "B": "Test2"}
         
+        # Create an XMLSerializer for a new structure definition and use it to 
+        # serialize the corresponding data into a string
+        xmlSerializer = serialize.XMLSerializer(structure_def)
+        serialized_data = xmlSerializer.serialize_to_string(data)
+        
+        # Deserialize the data using a new XMLSerializer with the same 
+        # structure definition dictionary
+        xmlSerializer2 = serialize.XMLSerializer(structure_def)
+        deserialized_data = \
+            xmlSerializer2.deserialize_from_string(serialized_data)
+        
+        # Check that the recovered data is the same as that original written
+        self.assertEqual(deserialized_data, data)
+        
+    
     def test_invalid_structure_definition_dictionaries(self):
         """
         Test that constructing a serializer object with an invalid structure 
@@ -310,6 +340,12 @@ class TestSerialize(unittest.TestCase):
         # Invalid data: not a dictionary
         # This one actually raises AttributeError, but may raise any exception
         inv_data = object()
+        self.assertRaises(Exception, xmlSerializer.serialize_to_string, 
+                          inv_data)
+        
+        # Invalid data: not a dictionary, string
+        # This one actually raises AttributeError, but may raise any exception
+        inv_data = "Invalid Data"
         self.assertRaises(Exception, xmlSerializer.serialize_to_string, 
                           inv_data)
         
@@ -435,6 +471,33 @@ class TestSerialize(unittest.TestCase):
         newSerializer = serialize.XMLSerializer(structure_def)
         self.assertRaises(invDataErr, newSerializer.serialize_to_string, 
                           inv_data)
+                          
+    def test_deserialize_xml_file_invalid_data(self):
+        """
+        Test that attempting to deserialize data from a file that contains 
+        valid XML but that does not represent well-formed serialized data 
+        results in an InvalidSerializeDataError being raised.
+        """
+        # Construct the path to the directory where our invalid test files are 
+        # located:
+        # __file__ is the file corresponding to this module (TestSerialize)
+        invalid_files_dir = os.path.join(os.path.dirname(__file__), 
+                                         "TestSerialize.resources",
+                                         "invalid_serialize_xml_files")
+        
+        # All files use the person_structure_definition, lets create a 
+        # serializer object for that structure:
+        xmlSerializer = serialize.XMLSerializer(person_structure_definition)
+        
+        # Now, we attempt to use xmlSerializer to deserialize each of our 
+        # invalid test files, checking that it raises an error.
+        # The example files contain data that is badly-formed serialized data, 
+        # not merely inconsistent with person_structure_definition.
+        for file_name in ["err_dummy_root_without_inner_elements.xml",
+                          "err_element_without_element_or_text_children.xml"]:
+            inv_file = os.path.join(invalid_files_dir, file_name)
+            self.assertRaises(serialize.InvalidSerializeDataError, 
+                              xmlSerializer.deserialize_from_file, inv_file)
         
         
     ## =======================================================================

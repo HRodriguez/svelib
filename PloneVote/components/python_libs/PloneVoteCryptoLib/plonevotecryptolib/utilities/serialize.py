@@ -40,6 +40,57 @@
 # Module level documentation #TODO
 """serialize.py : A general serializer module for PloneVoteCryptoLib
 
+This utility module provides serializer classes to store (serialize) and 
+retrieve (deserialize) structured data from unstructured storage such as a file 
+or a string. Each serialize class presents the same interface to callers, 
+allowing for the format of serialized data (such as XML, JSON, etc) to be 
+changed by simply changing the class of the serializer object used.
+
+Because of python's dynamic nature, serializing and then deserializing 
+arbitrary objects from untrusted storage (using, for example, the pickle 
+module) is inherently dangerous. See http://nadiana.com/python-pickle-insecure
+
+To solve this problem, serialize.py allows for the serialization of structured 
+data. Each serializer object must, at construction, be provided with a 
+structure definition dictionary, which constrains the form of the data that 
+this object will serialize and deserialize.
+
+A structure dictionary is a dictionary with string keys and tuple values. 
+Each key names an element of the data to be serialized and each tuple describes 
+how that element may appear in the data. The tuple consists of two integers and 
+either None or another structure definition dictionary:
+
+    * The first integer indicates the minimum number of times (min_occurrences) 
+    that the element may appear in the serializable/serialized data.
+    
+    * The second integer indicates the maximum number of times 
+    (max_occurrences) that the element may appear in the 
+    serializable/serialized data.
+    
+    * The third element in the tuple may be None, indicating that the data for 
+    that element must be textual data (a string); or a structure definition 
+    dictionary, providing a recursive definition of that element (ie. the 
+    element is formed of more elements). The first case is called a leaf or 
+    string element, while the second is called a composite element.
+    
+The min_occurrences and max_occurrences values may be omitted from the tuple, 
+in which case they are assumed to be 0. For max_occurrences, 0 means 
+"any number of occurrences" or "infinite" (an actual requirement of a maximum 
+of 0 occurrences would be absurd, so we can re-purpose this value).
+
+The following are all valid ways of giving the tuple that defines the value of 
+an element inside a serialize structure definition dictionary:
+
+    (min_occurences, max_occurrences, None)
+    (min_occurences, max_occurrences, {... #structure definition dict})
+    (min_occurences, None)
+    (min_occurences, {... #structure definition dict})
+    (None)
+    ({... #structure definition dict})
+
+We now show a structure definition dictionary for a person with 1-n first 
+names, 0-n middle names, 1-n last names and a single age*.
+
 Example serialize structure definition dictionary:
     
     structure_definition = {
@@ -52,6 +103,28 @@ Example serialize structure definition dictionary:
             "age" : (1, 1, None)            # 1 age allowed, exactly
         }),
     }
+
+The data to be serialized must be provided in the form of another dictionary, 
+constrained by the corresponding structure definition dictionary. We call this 
+dictionary a serializable data dictionary.
+
+Each element in the serializable data dictionary must have the same name as an 
+element in the structure definition dictionary (also at the same 'level'). Its 
+value must be either:
+
+    * A single string, if the element was defined to be a leaf element in the 
+      structure definition dictionary and only one occurrence appears in the 
+      data.
+      
+    * A serializable data dictionary matching the element's own structure 
+      definition dictionary, if the element was defined to be composite and 
+      only one occurrence appears in the data.
+      
+    * A list of either strings or serializable data dictionaries containing one 
+      element for each occurrence of the element in the data.
+
+The following is an example of a serializable data dictionary matching the 
+previously given structure definition dictionary.
 
 Example matching serializable data:
 
@@ -67,6 +140,36 @@ Example matching serializable data:
             "age" : "42"
         }
     }
+    
+To serialize this data, one needs only create a new serializer object with the 
+corresponding structure definition dictionary. For example, a XMLSerializer:
+    
+    serializer = XMLSerializer(structure_definition)
+    
+And pass the data to any of its serialize_to_X methods. Most serializers 
+provide at least serialize_to_file and serialize_to_string:
+
+    serializer.serialize_to_file(file_name, data)
+    
+To deserialize the data, one must use a serializer object of the same class, 
+created with the same structure definition dictionary. Each serialize_to_X 
+should have a corresponding deserialize_from_X method:
+
+    recovered_data = serializer.deserialize_from_file(file_name)
+    
+The result of calling this method will be to recover the data (in serializable  
+data dictionary form).
+
+If the serialized data is invalid or does not match the expected structure 
+definition, however, an InvalidSerializeDataError exception will be raised 
+instead. This ensures that recovered data always meets the specified 
+constrains, making it easier for the consuming code to quickly and safely 
+reconstruct objects or configuration from a recovered serializable data 
+dictionary.
+
+---
+* Yes, we are aware this is not how names work in the real world, all over the 
+world, this is just a toy example.
 """
 
 # ============================================================================
@@ -75,7 +178,8 @@ Example matching serializable data:
 
 import xml.dom.minidom
 
-__all__ = ["XMLSerializer", "InvalidSerializeStructureDefinitionError"]
+__all__ = ["XMLSerializer", "InvalidSerializeStructureDefinitionError", 
+           "InvalidSerializeDataError"]
 
 DUMMY_ROOT_ELEMENT_NAME = "s__SerializedDataRoot__s"
 
@@ -654,6 +758,28 @@ class XMLSerializer(BaseSerializer):
         
     def _read_from_dom_element(self, dom_element):
         """
+        Recover the data serialized into the given dom_element.
+        
+        This method reads an XML element or document node and parses its 
+        contents recursively into a well-formed serializable data dictionary.
+        
+        This method does not check that the recovered data matches this 
+        serializer object's structure definition dictionary. As such, it should 
+        never be called directly from another class, deserialize_from_dom 
+        should be used instead.
+        
+        Arguments: 
+            dom_element::xml.dom.minidom.Element    -- 
+                The XML DOM element from which we wish to read the serialized 
+                data. May also be an xml.dom.minidom.Document object.
+        
+        Returns:
+            data::dict  -- The contents of dom_element as a serializable data 
+                           dictionary.
+        
+        Throws:
+            InvalidSerializeDataError   -- 
+                If dom_element does not contain well-formed serialized data.
         """
         # Get all nodes under the current element
         child_nodes = dom_element.childNodes
@@ -725,6 +851,27 @@ class XMLSerializer(BaseSerializer):
         
     def deserialize_from_dom(self, dom):
         """
+        Deserialize (recover) data from an XML document.
+        
+        This method restores the data serialized into the XML document dom as a 
+        serializable data dictionary. Recovered data is checked to be valid 
+        according to the structure definition dictionary associated with this 
+        serializer object.
+        
+        Arguments:
+            dom::xml.dom.minidom.Document   -- 
+                The XML document containing the serialized data we wish to 
+                deserialize.
+                
+        Return:
+            data::dict  -- The deserialized data in the form of a serializable 
+                           data dictionary (see module level documentation).
+                           
+        Throws:
+            InvalidSerializeDataError   -- 
+                If the given XML document doesn't contain a valid serialized 
+                representation of data matching the structure definition 
+                dictionary associated with this serializer object.
         """
         data = self._read_from_dom_element(dom)
         
@@ -750,26 +897,67 @@ class XMLSerializer(BaseSerializer):
         
     def deserialize_from_file(self, filename):
         """
+        Deserialize (recover) data from an XML file.
+        
+        This method restores the data serialized into the XML file as a 
+        serializable data dictionary. Recovered data is checked to be valid 
+        according to the structure definition dictionary associated with this 
+        serializer object.
+        
+        Arguments:
+            filename::string   -- The name of the file containing the 
+                                  serialized data we wish to deserialize.
+                
+        Return:
+            data::dict  -- The deserialized data in the form of a serializable 
+                           data dictionary (see module level documentation).
+                           
+        Throws:
+            InvalidSerializeDataError   -- 
+                If the given XML file doesn't contain a valid serialized 
+                representation of data matching the structure definition 
+                dictionary associated with this serializer object.
         """
         dom = xml.dom.minidom.parse(filename)
         return self.deserialize_from_dom(dom)
         
     def deserialize_from_string(self, string):
         """
+        Deserialize data from a string containing its XML representation.
+        
+        This method restores the data serialized into the XML string as a 
+        serializable data dictionary. Recovered data is checked to be valid 
+        according to the structure definition dictionary associated with this 
+        serializer object.
+        
+        Arguments:
+            string::string   -- The string containing the XML serialized data 
+                                we wish to deserialize.
+                
+        Return:
+            data::dict  -- The deserialized data in the form of a serializable 
+                           data dictionary (see module level documentation).
+                           
+        Throws:
+            InvalidSerializeDataError   -- 
+                If the given XML string doesn't contain a valid serialized 
+                representation of data matching the structure definition 
+                dictionary associated with this serializer object.
         """
         dom = xml.dom.minidom.parseString(string)
         return self.deserialize_from_dom(dom)
         
 
-        
-class JSONSerializer(BaseSerializer):
-    """
-    """
-        
-    def serialize_to_file(self, filename, data):
-        """
-        """
-        
-    def serialize_to_string(self, data):
-        """
-        """
+## Should be simple to write if needed, use XMLSerializer as an example
+#        
+#class JSONSerializer(BaseSerializer):
+#    """
+#    """
+#        
+#    def serialize_to_file(self, filename, data):
+#        """
+#        """
+#        
+#    def serialize_to_string(self, data):
+#        """
+#        """
