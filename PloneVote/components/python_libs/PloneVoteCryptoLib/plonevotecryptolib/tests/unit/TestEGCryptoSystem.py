@@ -493,7 +493,57 @@ Task completed: \"Obtain a generator for the cyclic group\"
         
         # Delete the temporary file
         os.remove(file_path)
+                          
+    def test_load_invalid_file(self):
+        """
+        Test that loading a cryptosystem from a file in an invalid format 
+        raises an appropriate exception.
+        """
+        # Construct the path to the directory where our invalid test files are 
+        # located:
+        # __file__ is the file corresponding to this module (TestEGCryptoSystem)
+        invalid_files_dir = os.path.join(os.path.dirname(__file__), 
+                                         "TestEGCryptoSystem.resources",
+                                         "invalid_cryptosystem_xml_files")
         
+        # We check that attempting to load files that are not XML files or
+        # malformed results in an exception being raised.
+        #
+        # Note:
+        # The exception type is subject to change in all cases, as it depends 
+        # on xml.dom.minidom, so we test for any subclass of Exception.
+        inv_file = os.path.join(invalid_files_dir, "err_bin_file.pvcryptosys")
+        self.assertRaises(Exception, EGCryptoSystem.from_file, inv_file)
+        
+        inv_file = os.path.join(invalid_files_dir, 
+                                "err_not_xml_file.pvcryptosys")
+        self.assertRaises(Exception, EGCryptoSystem.from_file, inv_file)
+        
+        inv_file = os.path.join(invalid_files_dir, 
+                                "err_malformed_xml_file.pvcryptosys")
+        self.assertRaises(Exception, EGCryptoSystem.from_file, inv_file)
+        
+        inv_file = os.path.join(invalid_files_dir, 
+                                "err_no_root_element_file.pvcryptosys")
+        self.assertRaises(Exception, EGCryptoSystem.from_file, inv_file)
+        
+        # Now we check files that are valid XML files, but do not match the 
+        # expected format for an stored PloneVoteCryptoLib cryptosystem.
+        # All these files should raise InvalidPloneVoteCryptoFileError when 
+        # attempting to load them as EGCryptoSystem objects (or EGStub objects, 
+        # for that matter).
+        for file_name in ["err_invalid_root_element_file.pvcryptosys",
+                          "err_missing_name_element_file.pvcryptosys",
+                          "err_missing_description_element_file.pvcryptosys",
+                          "err_missing_nbits_element_file.pvcryptosys",
+                          "err_missing_prime_element_file.pvcryptosys",
+                          "err_missing_generator_element_file.pvcryptosys",
+                          "err_non_int_nbits_element_file.pvcryptosys",
+                          "err_non_int_prime_element_file.pvcryptosys",
+                          "err_non_int_generator_element_file.pvcryptosys"]:
+            inv_file = os.path.join(invalid_files_dir, file_name)
+            self.assertRaises(InvalidPloneVoteCryptoFileError, 
+                              EGCryptoSystem.from_file, inv_file)
 
 
 class TestEGStub(unittest.TestCase):
