@@ -1,4 +1,6 @@
 import doctest
+import os
+import glob
 
 ######
 # HACK: Patch doctest in memory so that it works correctly with coverage.
@@ -46,5 +48,9 @@ if(sys.version_info < (2, 5)): # pragma: no cover
 # End HACK
 ######
 
-doctest.testfile("full_election_doctest.txt")
-doctest.testfile("bitstream_usage_doctest.txt")
+# Get the full path to the doctests
+doctest_dir = os.path.dirname(__file__)
+doctest_files = glob.glob(os.path.join(doctest_dir, "*.txt"))
+for doctest_file in doctest_files:
+    doctest_file = os.path.split(doctest_file)[1] # keep only the filename
+    doctest.testfile(doctest_file)

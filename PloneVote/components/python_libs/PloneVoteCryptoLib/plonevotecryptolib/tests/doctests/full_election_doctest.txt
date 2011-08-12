@@ -78,10 +78,16 @@ it relates to its security goals.
 IMPORTS
 -------------------------------------------------------------------------------
 
-Here we load all the plonevotecryptolib modules and classes that we will be 
+We import some standard python modules that we will use to support this test 
+code:
+    
+    >>> import os
+
+Then we load all the plonevotecryptolib modules and classes that we will be 
 using directly within this test (note that this test case exercises, directly 
 or indirectly, most of the library).
 
+    >>> import plonevotecryptolib
     >>> from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem
     >>> from plonevotecryptolib.Threshold.ThresholdEncryptionSetUp import \
     ...      ThresholdEncryptionSetUp
@@ -226,14 +232,22 @@ insecure bulletin board.
 It is recommended, in a real election, that each trustee save the fingerprint 
 of their public key and convey it to all other trustees by some channel 
 outside of the PloneVote server. Before accepting the key of a fellow trustee, 
-each trustee is adviced to check that its fingerprint correctly matches that 
+each trustee is advised to check that its fingerprint correctly matches that 
 given to her by the owner of the key.
 
 All keys for the election (1-to-1 and threshold) will be generated for the same 
-ElGamal instance. We load one such instance as our general cryptosystem:
+ElGamal instance. We load one such instance as our general cryptosystem from 
+file:
 
-    >>> cryptosys = EGCryptoSystem.from_file( \
-    ...  "../../data/shared/cryptosystems/default1024bits.pvcryptosys")
+    >>> # Some trickery to get the correct path to the file regardless of 
+    >>> # where this test is being run from:
+    >>> library_root = os.path.dirname(plonevotecryptolib.__file__)
+    >>> cryptosys_file = os.path.join(library_root, "data", "shared", 
+    ...                               "cryptosystems", 
+    ...                               "default1024bits.pvcryptosys")
+    
+    >>> # Load the standard 1024 bits cryptosystem
+    >>> cryptosys = EGCryptoSystem.from_file(cryptosys_file)
 
 Note: We use a 1024 bits cryptosystem to make this tests run faster. In 
     practice, a 2048 or 4096 bits cryptosystem may be more adequate.

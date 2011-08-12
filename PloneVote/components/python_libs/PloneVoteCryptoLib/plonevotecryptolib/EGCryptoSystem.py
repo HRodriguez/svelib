@@ -768,8 +768,13 @@ class EGStub:
 		tuple (nbits, prime, generator).
 		
 		Arguments:
-			cs_scheme_element	-- An dom node pointing to a CryptoSystemScheme 
+			cs_scheme_element	-- An DOM node pointing to a CryptoSystemScheme 
 								   XML node
+		
+		Throws:
+			InvalidPloneVoteCryptoFileError -- If the given DOM node is not a 
+			                                   valid CryptoSystemScheme XML 
+			                                   node
 		
 		Returns:
 			(nbits, prime, generator)::(int, long, long)
@@ -789,14 +794,15 @@ class EGStub:
 		if(nbits_element == None):
 			raise InvalidPloneVoteCryptoFileError(filename, 
 				"The <CryptoSystemScheme> specification must include the " \
-				"cryptosystem instance's key size in bits")
+				"cryptosystem instance's key size in bits.")
 				
 		if(len(nbits_element.childNodes) != 1 or 
-			nbits_element.childNodes[0].nodeType != nbits_element.childNodes[0].TEXT_NODE):
+			nbits_element.childNodes[0].nodeType != \
+			nbits_element.childNodes[0].TEXT_NODE):
 			
 			raise InvalidPloneVoteCryptoFileError(filename, 
 				"The <CryptoSystemScheme> specification must include the " \
-				"cryptosystem instance's key size in bits")
+				"cryptosystem instance's key size in bits.")
 		
 		nbits_str = nbits_element.childNodes[0].data.strip()	# trim spaces
 		nbits = int(nbits_str)
@@ -805,7 +811,7 @@ class EGStub:
 		if(prime_element == None):
 			raise InvalidPloneVoteCryptoFileError(filename, 
 				"The <CryptoSystemScheme> specification must include the " \
-				"cryptosystem instance's prime")
+				"cryptosystem instance's prime.")
 				
 		if(len(prime_element.childNodes) != 1 or 
 			prime_element.childNodes[0].nodeType != \
@@ -813,7 +819,7 @@ class EGStub:
 			
 			raise InvalidPloneVoteCryptoFileError(filename,  
 				"The <CryptoSystemScheme> specification must include the " \
-				"cryptosystem instance's prime")
+				"cryptosystem instance's prime.")
 		
 		prime_str = prime_element.childNodes[0].data.strip()
 		prime = int(prime_str, 16)	# From hexadecimal representation
@@ -822,7 +828,7 @@ class EGStub:
 		if(generator_element == None):
 			raise InvalidPloneVoteCryptoFileError(filename, 
 				"The <CryptoSystemScheme> specification must include the " \
-				"cryptosystem instance's generator")
+				"cryptosystem instance's generator.")
 				
 		if(len(generator_element.childNodes) != 1 or 
 			generator_element.childNodes[0].nodeType != \
@@ -830,7 +836,7 @@ class EGStub:
 			
 			raise InvalidPloneVoteCryptoFileError(filename,  
 				"The <CryptoSystemScheme> specification must include the " \
-				"cryptosystem instance's generator")
+				"cryptosystem instance's generator.")
 		
 		generator_str = generator_element.childNodes[0].data.strip()
 		generator = int(generator_str, 16)
@@ -875,7 +881,7 @@ class EGStub:
 		if(name_element == None):
 			raise InvalidPloneVoteCryptoFileError(filename, 
 				"A PloneVoteCryptoLib stored cryptosystem file must contain " \
-				"a name element")
+				"a name element.")
 				
 		if(len(name_element.childNodes) != 1 or 
 			name_element.childNodes[0].nodeType != \
@@ -892,7 +898,7 @@ class EGStub:
 		if(description_element == None):
 			raise InvalidPloneVoteCryptoFileError(filename, 
 				"A PloneVoteCryptoLib stored cryptosystem file must contain " \
-				"a description element")
+				"a description element.")
 				
 		if(len(description_element.childNodes) != 1 or 
 			description_element.childNodes[0].nodeType != \
