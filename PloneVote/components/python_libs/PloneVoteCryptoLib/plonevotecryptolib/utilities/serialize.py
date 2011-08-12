@@ -293,7 +293,7 @@ def _parse_schema_tuple(schema_tuple):
         min_occurrences = 0
         max_occurrences = 0
         sub_sd_node = schema_tuple
-    elif(len(schema_tuple) == 1): # This case might be unreachable
+    elif(len(schema_tuple) == 1): #pragma: no cover (unreachable in python2.4)
         min_occurrences = 0
         max_occurrences = 0
         sub_sd_node = schema_tuple[0]
