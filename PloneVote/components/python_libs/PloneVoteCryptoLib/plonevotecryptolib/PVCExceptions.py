@@ -174,6 +174,33 @@ class NotAGeneratorError(ParameterError):
 		ParameterError.__init__(self, msg)
 
 
+
+class EGCSUnconstructedStateError(Exception):
+    """
+    Raised when an EGCryptoSystem instance is improperly constructed and used.
+    
+    This exception is raised when an EGCryptoSystem instance that was not 
+    properly constructed is accessed.
+    
+    EGCryptoSystem may not be constructed through the __init__ constructor. It 
+    must be created through one of its factory class methods, such as new() or
+    load(nbits, prime, generator).
+    """
+    
+    def __str__(self):
+        return self.msg
+
+    def __init__(self):
+        """
+        Create a new EGCSUnconstructedStateError exception.
+        """
+        self.msg = "Attempted to use an improperly constructed cryptosystem. " \
+                   "EGCryptoSystem objects must be obtained through the " \
+                   "class' factory methods, such as new() or load(nbits, " \
+                   "prime, generator)."
+
+
+
 class InvalidPloneVoteCryptoFileError(ParameterError):
 	"""
 	The given file is not a valid PloneVoteCryptoLib file of the expected type. 
