@@ -46,18 +46,6 @@ from plonevotecryptolib.PVCExceptions import InvalidPloneVoteCryptoFileError
 from plonevotecryptolib.Ciphertext import Ciphertext
 from plonevotecryptolib.utilities.BitStream import BitStream
 
-class MessageToLongError(Exception):
-	"""
-	The given message to encrypt is larger than the allowed maximum.
-	"""
-
-	def __init__(self):
-		"""
-		Create a new MessageToLongError exception.
-		"""
-		self.msg = "The message to encrypt exceeds the maximum allowed size " \
-				   "(16 Exabytes)."
-
 
 class PublicKey:
 	"""
