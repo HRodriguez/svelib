@@ -1,0 +1,330 @@
+# -*- coding: utf-8 -*-
+#
+# ============================================================================
+# About this file:
+# ============================================================================
+#
+#  TestBasicEncryption.py : Unit tests for basic encryption and decryption.
+#
+#  This file provides tests for the basic ElGammal encryption and decryption 
+#  functions offered by plonevotecryptolib. This test file provides the main 
+#  unit tests for multiple python modules in the plonevotecryptolib.* 
+#  namespace, namely:
+#
+#   * plonevotecryptolib.PublicKey    (PublicKey.py)
+#   * plonevotecryptolib.PrivateKey    (PrivateKey.py)
+#   * plonevotecryptolib.Ciphertext    (Ciphertext.py)
+#   * plonevotecryptolib.KeyPair    (KeyPair.py)
+#
+#  These modules are tested together because the functionality offered by them 
+#  is so closely interrelated that testing them in isolation is both extremely 
+#  hard, and not truly indicative of their real usage environment. For example, 
+#  it makes little to no sense to test a class designed to represent encrypted 
+#  data (Ciphertext) separately from the classes used to encrypt (PublicKey) 
+#  and decrypt (PrivateKey) that same data.
+#
+#  For usage documentation of the classes tested in this file, see also:
+#    * TODO: Add a doctest for basic ElGammal (cryptosys initialization,
+#           key pair creation, encryption and decryption)
+#    * plonevotecryptolib/tests/doctests/full_election_doctest.txt
+#    * the documentation strings for the classes and methods of 
+#      PublicKey.py, PrivateKey.py, Ciphertext.py and KeyPair.py
+#
+#
+#  Part of the PloneVote cryptographic library (PloneVoteCryptoLib)
+#
+#  Originally written by: Lazaro Clapp
+#
+# ============================================================================
+# LICENSE (MIT License - http://www.opensource.org/licenses/mit-license):
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+# 
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+# ============================================================================
+
+# Standard library imports
+import unittest
+import os
+import tempfile
+import math
+import xml.dom.minidom
+
+# Third party library imports
+import Crypto.Util.number
+
+# Main library PloneVoteCryptoLib imports
+import plonevotecryptolib.params as params
+from plonevotecryptolib.PVCExceptions import *
+from plonevotecryptolib.utilities.TaskMonitor import TaskMonitor
+from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem
+from plonevotecryptolib.PublicKey import PublicKey
+from plonevotecryptolib.PrivateKey import PrivateKey
+from plonevotecryptolib.Ciphertext import Ciphertext
+from plonevotecryptolib.KeyPair import KeyPair
+
+# plonevotecryptolib.tests.* imports
+# Get Counter and Logger from TestTaskMonitor
+from plonevotecryptolib.tests.unit.TestTaskMonitor import (Counter as Counter,\
+                                                           Logger as Logger)
+    
+# ============================================================================
+# Helper functions and other definitions:
+# ============================================================================
+
+# Temporarily disable PloneVoteCryptoLib's minimum key size security check, 
+# allowing cryptosystems of any size to be accepted as valid.
+params.MINIMUM_KEY_SIZE = 0
+
+_cryptosys = None
+
+def get_cryptosystem():
+    """
+    This function returns a predetermined EGCryptoSystem object.
+    
+    The EGCryptoSystem object is loaded from a resource file and guaranteed to 
+    be always the same, at least for same execution of the test suite. The 
+    cryptosystem is also cached in memory for quicker access.
+    """
+    global _cryptosys
+    # Check if we have already loaded a cryptosystem for this test run
+    if(_cryptosys == None):
+        # If not, load it now:
+        # Construct the path to the cryptosystem test resource file
+        cryptosys_file = os.path.join(os.path.dirname(__file__), 
+                                      "TestBasicEncryption.resources",
+                                      "test1024bits.pvcryptosys")
+        
+        # Load the cryptosystem from file
+        _cryptosys = EGCryptoSystem.from_file(cryptosys_file)
+    
+    # Return the cached cryptosystem 
+    # (Note: this is the original reference, not a deepcopy, tests using the 
+    #  cryptosystem object should treat it as read-only to preserve isolation)
+    return _cryptosys
+
+# ============================================================================
+# The actual test cases:
+# ============================================================================
+
+class TestEncryptionDecryption(unittest.TestCase):
+    """
+    Test encryption and decryption functions.
+    """
+    
+    def setUp(self):
+        """
+        Unit test setup method.
+        """
+        # Get the ElGamal cryptosystem to use
+        self.cryptosystem = get_cryptosystem()
+        
+        # Generate a key pair
+        key_pair = self.cryptosystem.new_key_pair()
+        self.public_key = key_pair.public_key
+        self.private_key = key_pair.private_key
+        
+        # A message used to for encryption/decryption
+        self.message = "This string will be encrypted and then decrypted. It " \
+                       "contains some non-ascii chars and control chars:\n\t" \
+                       "ÄäÜüß ЯБГДЖЙŁĄŻĘĆŃŚŹ てすと ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃ."
+    
+    def test_encryption_decryption(self):
+        """
+        Test that a simple message can be encrypted and then decrypted.
+        """
+        # Use the public key to encrypt the message
+        ciphertext = self.public_key.encrypt_text(self.message)
+        
+        # then use the private key to recover it
+        recovered_message = self.private_key.decrypt_to_text(ciphertext)
+        
+        # Check that the message was recovered correctly
+        self.assertEqual(recovered_message, self.message)
+    
+    def test_encryption_decryption_w_padding(self):
+        """
+        Test encryption and decryption with padding to a certain size
+        """
+        # Pad to 2 KB (given in bytes)
+        PAD_TO_SIZE = 2*1024
+        
+        # Use the public key to encrypt the message
+        ciphertext = self.public_key.encrypt_text(self.message, 
+                                                  pad_to=PAD_TO_SIZE)
+                                                  
+        # Calculate the expected size of the ciphertext in blocks
+        block_size = self.cryptosystem.get_nbits()
+        
+        # Each nbits-1 block of the message (+ padding) is converted to an 
+        # nbits block in the ciphertext (to ensure all blocks of the message 
+        # are \in {1,...,p-1}).
+        expected_blocks = int(math.ceil((8.0*PAD_TO_SIZE)/(block_size-1)))
+                                                  
+        # Check that the length in blocks of the ciphertext is the expected one
+        self.assertEqual(ciphertext.get_length(), expected_blocks)
+        
+        # then use the private key to recover it
+        recovered_message = self.private_key.decrypt_to_text(ciphertext)
+        
+        # Check that the message was recovered correctly
+        self.assertEqual(recovered_message, self.message)
+    
+    def test_encryption_decryption_w_padding_too_small(self):
+        """
+        Test encryption and decryption with padding to less than the message 
+        length.
+        """
+        # Pad to 8 bytes (much smaller than message)
+        PAD_TO_SIZE = 8
+        
+        # In this case, encryption should still work, pad_to indicates the 
+        # MINIMUM size of the encrypted ciphertext, not a fixed limit.
+        
+        # Use the public key to encrypt the message
+        ciphertext = self.public_key.encrypt_text(self.message, 
+                                                  pad_to=PAD_TO_SIZE)
+        
+        # then use the private key to recover it
+        recovered_message = self.private_key.decrypt_to_text(ciphertext)
+        
+        # Check that the message was recovered correctly
+        self.assertEqual(recovered_message, self.message)
+    
+    def test_encryption_decryption_w_task_monitor(self):
+        """
+        Test that encryption and decryption can be monitored using a 
+        TaskMonitor object.
+        """
+        # Get a new task monitor and two counters, one for encryption and one 
+        # for decryption
+        task_monitor = TaskMonitor()
+        encryptionCounter = Counter()
+        decryptionCounter = Counter()
+        
+        # Register a task monitor callback to increment encryptionCounter once 
+        # for each 5% progress of encryption
+        def encryption_callback(tm):
+            encryptionCounter.increment()
+        
+        task_monitor.add_on_progress_percent_callback(encryption_callback, 
+                                                      percent_span = 5.0)
+        
+        # Encrypt the test message, passing the task monitor
+        ciphertext = self.public_key.encrypt_text(self.message, 
+                                                  task_monitor=task_monitor)
+        
+        # Unregister the encryption callback from the monitor and register 
+        # a callback to increment decryptionCounter once for each 5% progress 
+        # of decryption.
+        task_monitor.remove_callback(encryption_callback)
+        
+        def decryption_callback(tm):
+            decryptionCounter.increment()
+        
+        task_monitor.add_on_progress_percent_callback(decryption_callback, 
+                                                      percent_span = 5.0)
+        
+        # Decrypt the message, passing the task monitor:
+        self.private_key.decrypt_to_text(ciphertext, task_monitor=task_monitor)
+        
+        # Check that both counters have been incremented 100/5 = 20 times
+        self.assertEqual(encryptionCounter.value, 20)
+        self.assertEqual(decryptionCounter.value, 20)
+        
+    def test_decryption_incompatible_cyphertext_error(self):
+        """
+        Test that attempting to decrypt a ciphertext with a private key that is 
+        not the pair of the public key with which it was created raises an 
+        IncompatibleCiphertextError exception.
+        """
+        # Use the public key to encrypt the message
+        ciphertext = self.public_key.encrypt_text(self.message)
+        
+        # Generate a new key pair and take its private key
+        other_key_pair = self.cryptosystem.new_key_pair()
+        other_private_key = other_key_pair.private_key
+        
+        # This key should no be capable of decrypting the ciphertext and an 
+        # error should be raised
+        self.assertRaises(IncompatibleCiphertextError, 
+                          other_private_key.decrypt_to_text, ciphertext)
+        
+    def test_decryption_incompatible_cyphertext_error_cryptosys_bits(self):
+        """
+        Test that attempting to decrypt a ciphertext with a private key 
+        generated using a cryptosystem of a different bit size (nbits) than the 
+        one of the public key used to encrypt the ciphertext raises an 
+        IncompatibleCiphertextError exception.
+        """
+        # For coverage completeness (A different error message is raised when 
+        # the problem is an incompatible size for the cryptosystem than for any 
+        # other incompatible private key).
+        
+        # Use the public key to encrypt the message
+        ciphertext = self.public_key.encrypt_text(self.message)
+        
+        # Construct a new 128 bits (terribly unsafe) cryptosystem
+        other_cryptosys = EGCryptoSystem.new(nbits=128)
+        
+        # Generate a new key pair using this cryptosystem and take its private 
+        # key
+        other_key_pair = other_cryptosys.new_key_pair()
+        other_private_key = other_key_pair.private_key
+        
+        # This key should no be capable of decrypting the ciphertext and an 
+        # error should be raised
+        self.assertRaises(IncompatibleCiphertextError, 
+                          other_private_key.decrypt_to_text, ciphertext)
+        
+    def test_encrypt_message_to_large(self):
+        """
+        Test that attempting to encrypt a message larger than 16 Exabits 
+        results in ValueError being raised.
+        """
+        # 16 Eb is the maximum size supported for plaintext to be encrypted. 
+        # Since generating 16 Eb of data for this test is unfeasible, we 
+        # instead will mock-up a fake BitStream class that reports having more  
+        # than 16 Eb of data.
+        # This class only implements the methods currently used by 
+        # PublicKey.encrypt_bitstream(...). Should that method start using 
+        # other BitStream methods, our fake bitstream will also need to be 
+        # modified to simulate them.
+        class ZeroedFakeBitStream:
+            def __init__(self, reported_size):
+                self.reported_size = reported_size
+                self.pos = 0
+            def get_length(self):
+                return self.reported_size
+            def get_current_pos(self):
+                return self.pos
+            def seek(self, pos):
+                self.pos = pos
+            def get_num(self, bit_length):
+                return 0
+        
+        # Create a new ZeroedFakeBitStream with reported size 2**65 (32 Eb)
+        huge_bs = ZeroedFakeBitStream(2**65)
+        
+        # Check that encrypt_bitstream raises a value error when given the 
+        # "32 Eb bitstream"
+        self.assertRaises(ValueError, 
+                          self.public_key.encrypt_bitstream, huge_bs)
+        
+
+if __name__ == '__main__':
+    unittest.main()

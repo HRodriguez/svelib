@@ -61,7 +61,7 @@ class PrivateKey:
 		Creates a new private key. Should not be invoked directly.
 		
 		Instead of using this constructor from outside of PloneVoteCryptoLib, 
-		please use the class methods KeyPair.new() or 
+		please use the class methods EGCryptoSystem.new_key_pair() or 
 		PrivateKey.from_file(file).
 		
 		Arguments:
@@ -129,7 +129,9 @@ class PrivateKey:
 				task_monitor.new_subtask("Decrypt data", expected_ticks = ticks)
 		
 		for gamma, delta in ciphertext:
-			assert max(gamma, delta) < 2**(block_size + 1), "The ciphertext object includes blocks larger than the expected block size."
+			assert max(gamma, delta) < 2**(block_size + 1), \
+			    "The ciphertext object includes blocks larger than the " \
+			    "expected block size."
 			m = (pow(gamma, prime - 1 - key, prime) * delta) % prime
 			bitstream.put_num(m, block_size)
 			

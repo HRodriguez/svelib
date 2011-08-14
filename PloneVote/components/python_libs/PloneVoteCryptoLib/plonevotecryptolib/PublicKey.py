@@ -82,7 +82,8 @@ class PublicKey:
 		Creates a new public key. Should not be invoked directly.
 		
 		Instead of using this constructor from outside of PloneVoteCryptoLib, 
-		please use the class methods KeyPair.new() or PublicKey.from_file(file).
+		please use the class methods EGCryptoSystem.new_key_pair() or 
+		PublicKey.from_file(file).
 		
 		Arguments:
 			cryptosystem::EGCryptoSystem-- The ElGamal cryptosystem in which 

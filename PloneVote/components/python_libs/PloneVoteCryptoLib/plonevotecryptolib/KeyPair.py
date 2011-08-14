@@ -68,10 +68,4 @@ class KeyPair:
 		self.public_key = PublicKey(cryptosystem, inner_public_key)
 		self.private_key = PrivateKey(cryptosystem, self.public_key, 
 									 inner_private_key)
-	
-	@classmethod
-	def new(cls, cryptosystem):
-		"""
-		Generates a new key pair for the given EGCryptoSystem
-		"""
-		return cls(cryptosystem)
+
