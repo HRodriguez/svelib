@@ -326,5 +326,198 @@ class TestEncryptionDecryption(unittest.TestCase):
                           self.public_key.encrypt_bitstream, huge_bs)
         
 
+class TestPublicKeySerialization(unittest.TestCase):
+    """
+    Test that PublicKey objects can be serialized to and deserialized from file.
+    """
+    
+    def setUp(self):
+        """
+        Unit test setup method.
+        """
+        # Get the ElGamal cryptosystem to use
+        self.cryptosystem = get_cryptosystem()
+        
+    def test_get_fingerprint(self):
+        """
+        Test that the PublicKey.get_fingerprint() always returns the same 
+        fingerprint for the same PublicKey object and a different one for 
+        another object.
+        """
+        # Create two public keys from the same cryptosystem
+        public_key1 = self.cryptosystem.new_key_pair().public_key
+        public_key2 = self.cryptosystem.new_key_pair().public_key
+        
+        # And a third from a different (insecure, 128bit) cryptosystem
+        insecure_cryptosys = EGCryptoSystem.new(nbits=128)
+        public_key3 = insecure_cryptosys.new_key_pair().public_key
+        
+        # Get each key's fingerprint
+        pk1_fingerprint = public_key1.get_fingerprint()
+        pk2_fingerprint = public_key2.get_fingerprint()
+        pk3_fingerprint = public_key3.get_fingerprint()
+        
+        # Test that multiple calls to get_fingerprint() for the same PublicKey 
+        # object always return the same fingerprint
+        for i in range(0, 20):
+            self.assertEqual(public_key1.get_fingerprint(), pk1_fingerprint)
+            self.assertEqual(public_key2.get_fingerprint(), pk2_fingerprint)
+            self.assertEqual(public_key3.get_fingerprint(), pk3_fingerprint)
+            
+        # Check that fingerprints from different PublicKey objects are 
+        # different
+        self.assertFalse(pk1_fingerprint == pk2_fingerprint)
+        self.assertFalse(pk1_fingerprint == pk3_fingerprint)
+        self.assertFalse(pk2_fingerprint == pk3_fingerprint)
+        
+        
+    def test_save_load_file(self):
+        """
+        Test that we can correctly save a PublicKey to a file and load it 
+        back. 
+        """
+        # Get a new public key object
+        key = self.cryptosystem.new_key_pair().public_key
+        
+        # Get its fingerprint for comparison after deserialization
+        original_fingerprint = key.get_fingerprint()
+        
+        # Get a temporary file object using tempfile
+        (file_object, file_path) = tempfile.mkstemp()
+        
+        # We close the file descriptor since we will not be using it, instead 
+        # PublicKey's methods take the filename and open/close the file as 
+        # needed.
+        # Note that using mkstemp() instead tempfile.TemporaryFile means the 
+        # file remains in the filesystem even after it is closed.
+        os.close(file_object)
+        
+        # Save the key using to_file(...)
+        key.to_file(file_path)
+        
+        # Load it back using PublicKey.from_file(...)
+        recovered_key = PublicKey.from_file(file_path)
+                                         
+        # Get the fingerprint of the recovered key
+        recovered_fingerprint = recovered_key.get_fingerprint()
+        
+        # Check that the fingerprints match (and thus they're the same key)
+        self.assertEqual(recovered_fingerprint, original_fingerprint)
+        
+        # Also check that the == operator recognizes them as equal
+        self.assertEqual(recovered_key, key)
+        self.assertFalse(recovered_key != key)
+        
+        # Delete the temporary file
+        os.remove(file_path)
+        
+
+class TestPrivateKeySerialization(unittest.TestCase):
+    """
+    Test that PrivateKey objects can be serialized to and deserialized from file
+    """
+    
+    def setUp(self):
+        """
+        Unit test setup method.
+        """
+        # Get the ElGamal cryptosystem to use
+        self.cryptosystem = get_cryptosystem()
+        
+    def test_save_load_file(self):
+        """
+        Test that we can encrypt a message, save it to file, load it again and 
+        decrypt it. 
+        """
+        # Get a new private key object
+        key = self.cryptosystem.new_key_pair().private_key
+        
+        # Get a temporary file object using tempfile
+        (file_object, file_path) = tempfile.mkstemp()
+        
+        # We close the file descriptor since we will not be using it, instead 
+        # PrivateKey's methods take the filename and open/close the file as 
+        # needed.
+        # Note that using mkstemp() instead tempfile.TemporaryFile means the 
+        # file remains in the filesystem even after it is closed.
+        os.close(file_object)
+        
+        # Save the key using to_file(...)
+        key.to_file(file_path)
+        
+        # Load it back using PrivateKey.from_file(...)
+        recovered_key = PrivateKey.from_file(file_path)
+        
+        # Check that the recovered key is the same as the original key
+        self.assertEqual(recovered_key, key)
+        self.assertFalse(recovered_key != key)
+        
+        # Delete the temporary file
+        os.remove(file_path)
+        
+
+class TestCiphertextSerialization(unittest.TestCase):
+    """
+    Test that we can serialize a Ciphertext object to file and deserialize it 
+    from file.
+    """
+    
+    def setUp(self):
+        """
+        Unit test setup method.
+        """
+        # Get the ElGamal cryptosystem to use
+        self.cryptosystem = get_cryptosystem()
+        
+        # Generate a key pair
+        key_pair = self.cryptosystem.new_key_pair()
+        self.public_key = key_pair.public_key
+        self.private_key = key_pair.private_key
+        
+        # A message used to for encryption/decryption
+        self.message = "This string will be encrypted and then decrypted. It " \
+                       "contains some non-ascii chars and control chars:\n\t" \
+                       "ÄäÜüß ЯБГДЖЙŁĄŻĘĆŃŚŹ てすと ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃ."  
+        
+    def test_save_load_file(self):
+        """
+        Test that we can correctly save a PrivateKey to a file and load it 
+        back. 
+        """
+        # Use the public key to encrypt the message
+        ciphertext = self.public_key.encrypt_text(self.message)
+        
+        # Get a temporary file object using tempfile
+        (file_object, file_path) = tempfile.mkstemp()
+        
+        # We close the file descriptor since we will not be using it, instead 
+        # Ciphertext's methods take the filename and open/close the file as 
+        # needed.
+        # Note that using mkstemp() instead tempfile.TemporaryFile means the 
+        # file remains in the filesystem even after it is closed.
+        os.close(file_object)
+        
+        # Save the ciphertext using to_file(...)
+        ciphertext.to_file(file_path)
+        
+        # Load it back using Ciphertext.from_file(...)
+        recovered_ciphertext = Ciphertext.from_file(file_path)
+        
+        # Check that the recovered ciphertext is recognized as equal to the 
+        # original ciphertext
+        self.assertEqual(recovered_ciphertext, ciphertext)
+        self.assertFalse(recovered_ciphertext != ciphertext)
+        
+        # then use the private key to decrypt the deserialized ciphertext
+        recovered_message = \
+            self.private_key.decrypt_to_text(recovered_ciphertext)
+        
+        # Check that the message was recovered correctly
+        self.assertEqual(recovered_message, self.message)
+        
+        # Delete the temporary file
+        os.remove(file_path)
+
+
 if __name__ == '__main__':
     unittest.main()
