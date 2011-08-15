@@ -159,7 +159,8 @@ class Ciphertext:
         fingerprint and list of gamma and delta components. A ciphertext is not 
         equal to any object of a different type.
         """
-        if((other.nbits == self.nbits) and  
+        if(isinstance(other, Ciphertext) and 
+           (other.nbits == self.nbits) and  
            (other.pk_fingerprint == self.pk_fingerprint) and
            (other.gamma == self.gamma) and
            (other.delta == self.delta)):

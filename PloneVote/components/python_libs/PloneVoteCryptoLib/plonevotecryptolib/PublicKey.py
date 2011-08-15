@@ -81,7 +81,8 @@ class PublicKey:
         """
         Implements PublicKey equality.
         """
-        if((other.cryptosystem == self.cryptosystem) and  
+        if(isinstance(other, PublicKey) and 
+           (other.cryptosystem == self.cryptosystem) and 
            (other._key == self._key)):
             return True
         else:

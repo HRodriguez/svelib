@@ -57,7 +57,8 @@ class PrivateKey:
         """
         Implements PrivateKey equality.
         """
-        if((other.cryptosystem == self.cryptosystem) and  
+        if(isinstance(other, PrivateKey) and 
+           (other.cryptosystem == self.cryptosystem) and 
            (other.public_key == self.public_key) and  
            (other._key == self._key)):
             return True
