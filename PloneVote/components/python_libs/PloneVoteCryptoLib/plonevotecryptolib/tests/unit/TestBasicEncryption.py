@@ -424,6 +424,24 @@ class TestPrivateKeySerialization(unittest.TestCase):
         # Get the ElGamal cryptosystem to use
         self.cryptosystem = get_cryptosystem()
         
+    def test_equality_inequality(self):
+        """
+        Test PrivateKey's equality (==) and inequality (!=) operators.
+        """
+        # Create two different private keys:
+        key1 = self.cryptosystem.new_key_pair().private_key
+        key2 = self.cryptosystem.new_key_pair().private_key
+        
+        # Each key is equal to itself
+        self.assertTrue(key1 == key1)
+        self.assertFalse(key1 != key1)
+        self.assertTrue(key2 == key2)
+        self.assertFalse(key2 != key2)
+        
+        # They are not equal one to the other
+        self.assertTrue(key1 != key2)
+        self.assertFalse(key1 == key2)
+        
     def test_save_load_file(self):
         """
         Test that we can encrypt a message, save it to file, load it again and 

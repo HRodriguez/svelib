@@ -34,6 +34,12 @@
 # THE SOFTWARE.
 # ============================================================================
 
+
+
+# ============================================================================
+# Imports and constant definitions:
+# ============================================================================
+
 import xml.dom.minidom
 
 from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem, EGStub
@@ -42,6 +48,24 @@ from plonevotecryptolib.Ciphertext import Ciphertext
 from plonevotecryptolib.PVCExceptions import InvalidPloneVoteCryptoFileError
 from plonevotecryptolib.PVCExceptions import IncompatibleCiphertextError
 from plonevotecryptolib.utilities.BitStream import BitStream
+import plonevotecryptolib.utilities.serialize as serialize
+# ============================================================================
+
+PrivateKey_serialize_structure_definition = {
+    "PloneVotePrivateKey" : (1, 1, {    # Root element
+        "PrivateKey" : (1, 1, None),    # exactly 1 PrivateKey element
+        "PublicKey" : (1, 1, None),     # exactly 1 PublicKey element
+        "CryptoSystemScheme" : (1, 1, { # 1 cryptosystem element, containing:
+            "nbits" : (1, 1, None),     # exactly 1 nbits element
+            "prime" : (1, 1, None),     # exactly 1 prime element
+            "generator" : (1, 1, None)  # exactly 1 generator element
+         })
+    })
+}
+
+# ============================================================================
+# Classes:
+# ============================================================================
 
 class PrivateKey:
     """
@@ -185,46 +209,50 @@ class PrivateKey:
         bitstream.seek(0)
         length = bitstream.get_num(64)
         return bitstream.get_string(length)
-        
-    def _to_xml(self):
-        """
-        Returns an xml document containing a representation of this private key.
-        
-        Returns:
-            doc::xml.dom.minidom.Document
-        """
-        doc = xml.dom.minidom.Document()
-        root_element = doc.createElement("PloneVotePrivateKey")
-        doc.appendChild(root_element)
-        
-        priv_key_element = doc.createElement("PrivateKey")
-        priv_key_str = hex(self._key)[2:]        # Remove leading '0x'
-        if(priv_key_str[-1] == 'L'): 
-            priv_key_str = priv_key_str[0:-1]        # Remove trailing 'L'
-        priv_key_element.appendChild(doc.createTextNode(priv_key_str))
-        root_element.appendChild(priv_key_element)
-        
-        pub_key_element = doc.createElement("PublicKey")
-        pub_key_str = hex(self.public_key._key)[2:]        # Remove leading '0x'
-        if(pub_key_str[-1] == 'L'): 
-            pub_key_str = pub_key_str[0:-1]        # Remove trailing 'L'
-        pub_key_element.appendChild(doc.createTextNode(pub_key_str))
-        root_element.appendChild(pub_key_element)
-        
-        cs_scheme_element = self.cryptosystem.to_dom_element(doc)
-        root_element.appendChild(cs_scheme_element)
-        
-        return doc
-        
-    def to_file(self, filename):
+    
+    def to_file(self, filename, SerializerClass=serialize.XMLSerializer):
         """
         Saves this private key to a file.
-        """
-        doc = self._to_xml()
         
-        file_object = open(filename, "w")
-        file_object.write(doc.toprettyxml())
-        file_object.close()
+        Arguments:
+            filename::string    -- The path to the file in which to store the 
+                                   serialized PrivateKey object.
+            SerializerClass::class --
+                The class that provides the serialization. XMLSerializer by 
+                default. Must inherit from serialize.BaseSerializer and provide 
+                an adequate serialize_to_file method.
+                Note that often the same class used to serialize the data must 
+                be used to deserialize it.
+                (see utilities/serialize.py documentation for more information)
+        """
+        # Create a new serializer object for the PrivateKey structure definition
+        serializer = SerializerClass(PrivateKey_serialize_structure_definition)
+        
+        # Helper function to translate large numbers to their hexadecimal 
+        # string representation
+        def long_to_hex_str(num):
+            hex_str = hex(num)[2:]              # Remove leading '0x'
+            if(hex_str[-1] == 'L'): 
+                hex_str = hex_str[0:-1]         # Remove trailing 'L'
+            return hex_str
+        
+        # Generate a serializable data dictionary matching the definition:
+        prime_str = long_to_hex_str(self.cryptosystem.get_prime())
+        generator_str = long_to_hex_str(self.cryptosystem.get_generator())
+        data = {
+            "PloneVotePrivateKey" : {
+                "PrivateKey" : long_to_hex_str(self._key),
+                "PublicKey" : long_to_hex_str(self.public_key._key),
+                "CryptoSystemScheme" : {
+                    "nbits" : str(self.cryptosystem.get_nbits()),
+                    "prime" : prime_str,
+                    "generator" : generator_str
+                }
+            }
+        }
+        
+        # Use the serializer to store the data to file
+        serializer.serialize_to_file(filename, data)
         
     @classmethod
     def from_file(cls, filename):
