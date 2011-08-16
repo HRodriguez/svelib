@@ -78,7 +78,7 @@ import plonevotecryptolib.utilities.serialize as serialize
 
 __all__ = ["EGCryptoSystem", "EGStub", "EGCSUnconstructedStateError"]
 
-EGCSStub_serialize_structure_definition = {
+EGStub_serialize_structure_definition = {
     "PloneVoteCryptoSystem" : (1, 1, {  # Root element
         "name" : (1, 1, None),          # exactly 1 name element
         "description" : (1, 1, None),   # exactly 1 description element
@@ -275,7 +275,7 @@ def _get_generator(p, task_monitor=None):
 
 
 # ============================================================================
-# Classes
+# Classes:
 # ============================================================================ 
 class EGCryptoSystem:
     """
@@ -624,62 +624,6 @@ class EGStub:
         generator:long     -- The generator.
     """
     
-    @classmethod
-    def getSerializeStructureDefinition(cls):
-        """
-        Get the serialize structure definition for EGStub.
-        
-        This method returns the serialize structure definition dictionary used 
-        to serialize/deserialize an EGStub object. This is structure definition 
-        is useful for classes that include an EGStub instance as part of their 
-        own serialization.
-        
-        To serialize/deserialize an instance of EGStub to/from file, please see 
-        the to_file(...) and from_file(...) methods instead. 
-        
-        See the documentation for the serialize module for more information on 
-        plonevotecryptolib's object serialization.
-        """
-        return EGCSStub_serialize_structure_definition
-        
-    def getSerializableData(self):
-        """
-        Get the serializeble data dictionary for this EGStub instance.
-        
-        This method returns a serializable data dictionary representing the 
-        current EGStub instance, following the structure definition given by 
-        EGStub.getSerializeStructureDefinition(). This is useful for classes 
-        that include an EGStub instance as part of their own serialization.
-        
-        To serialize/deserialize an instance of EGStub to/from file, please see 
-        the to_file(...) and from_file(...) methods instead. 
-        
-        See the documentation for the serialize module for more information on 
-        plonevotecryptolib's object serialization.
-        """
-        # Encode prime and generator as strings in hexadecimal representation
-        prime_str = hex(self.prime)[2:]        # Remove leading '0x'
-        if(prime_str[-1] == 'L'): 
-            prime_str = prime_str[0:-1]        # Remove trailing 'L'
-        
-        generator_str = hex(self.generator)[2:]        # Remove leading '0x'
-        if(generator_str[-1] == 'L'): 
-            generator_str = generator_str[0:-1]        # Remove trailing 'L'
-        
-        # The serializable data dictionary:    
-        data = {
-            "PloneVoteCryptoSystem" : {
-                "name" : self.name,
-                "description" : self.description,
-                "CryptoSystemScheme" : {
-                    "nbits" : str(self.nbits),
-                    "prime" : prime_str,
-                    "generator" : generator_str
-                }
-            }
-        }
-        return data
-    
     def is_secure(self):
         """
         Checks whether the cryptosystem described by the EGStub is secure.
@@ -773,7 +717,7 @@ class EGStub:
         
     def to_file(self, filename, SerializerClass=serialize.XMLSerializer):
         """
-        Stores this instance of EGStub (as XML) in the given file.
+        Saves this EGStub to a file.
         
         Arguments:
             filename::string    -- The path to the file in which to store the 
@@ -782,12 +726,37 @@ class EGStub:
                 The class that provides the serialization. XMLSerializer by 
                 default. Must inherit from serialize.BaseSerializer and provide 
                 an adequate serialize_to_file method.
-                Note that the often the same class used to serialize the data 
-                must be used to deserialize it.
+                Note that often the same class used to serialize the data must 
+                be used to deserialize it.
                 (see utilities/serialize.py documentation for more information)
         """
-        serializer = SerializerClass(self.getSerializeStructureDefinition())
-        serializer.serialize_to_file(filename, self.getSerializableData())
+        # Create a new serializer object for the EGStub structure definition
+        serializer = SerializerClass(EGStub_serialize_structure_definition)
+        
+        # Encode prime and generator as strings in hexadecimal representation
+        prime_str = hex(self.prime)[2:]        # Remove leading '0x'
+        if(prime_str[-1] == 'L'): 
+            prime_str = prime_str[0:-1]        # Remove trailing 'L'
+        
+        generator_str = hex(self.generator)[2:]        # Remove leading '0x'
+        if(generator_str[-1] == 'L'): 
+            generator_str = generator_str[0:-1]        # Remove trailing 'L'
+        
+        # Generate a serializable data dictionary matching the definition:
+        data = {
+            "PloneVoteCryptoSystem" : {
+                "name" : self.name,
+                "description" : self.description,
+                "CryptoSystemScheme" : {
+                    "nbits" : str(self.nbits),
+                    "prime" : prime_str,
+                    "generator" : generator_str
+                }
+            }
+        }
+        
+        # Use the serializer to store the data to file
+        serializer.serialize_to_file(filename, data)
     
     # OBSOLETE: Remove as soon as all consuming classes through PVCL have been 
     # upgraded to use the serialize API
@@ -900,7 +869,7 @@ class EGStub:
         """
         # Create a serializer object of class SerializerClass with the 
         # structure definition for EGStub
-        serializer = SerializerClass(EGStub.getSerializeStructureDefinition())
+        serializer = SerializerClass(EGStub_serialize_structure_definition)
         
         # Deserialize the EGStub instance from file
         try:

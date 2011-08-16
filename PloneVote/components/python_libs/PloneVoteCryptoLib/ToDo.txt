@@ -51,4 +51,8 @@ TODO:
 	- Profile
 	- plonevotecryptolib/tests/doctests/taskmonitor_usage_doctest.txt
     - Add TaskMonitor.end_subtask() calls to monitored tasks
+    - Consider adding protection against attacks on privacy based on vote copying
+        See. Bulens, Giry, Pereira, "Running mixnet-based elections with Helios" (http://www.usenix.org/events/evtwote11/tech/final_files/Bulens.pdf)
+        and Pfitzmann , B., and Pfitzmann , A. "How to break the direct rsa-implementation of mixes".
+
 
