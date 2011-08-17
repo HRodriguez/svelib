@@ -858,8 +858,8 @@ class EGStub:
                 The class that provides the deserialization. XMLSerializer by 
                 default. Must inherit from serialize.BaseSerializer and provide 
                 an adequate deserialize_from_file method.
-                Note that the often the same class used to serialize the data 
-                must be used to deserialize it.
+                Note that often the same class used to serialize the data must 
+                be used to deserialize it.
                 (see utilities/serialize.py documentation for more information)
         
         Throws:

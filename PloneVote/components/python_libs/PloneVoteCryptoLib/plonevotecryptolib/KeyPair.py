@@ -42,30 +42,27 @@ from plonevotecryptolib.PublicKey import PublicKey
 from plonevotecryptolib.PrivateKey import PrivateKey
 
 class KeyPair:
-	"""
-	A key pair object.
-	
-	Both this object's constructor and the new(EGCryptoSystem) method can be 
-	used to generate a new pair of private and corresponding public key.
-	
-	Attributes:
-		public_key::PublicKey	-- The public key
-		private_key::PrivateKey	-- The private key	
-	"""
-	# ^ Redundant attribute description is redundant... redundantly
-	
-	def __init__(self, cryptosystem):
-		"""
-		Generates a new key pair for the given EGCryptoSystem
-		"""
-		p = cryptosystem.get_prime()
-		g = cryptosystem.get_generator()
-		random = StrongRandom()
-		
-		inner_private_key = random.randint(1, p - 2)
-		inner_public_key = pow(g, inner_private_key, p)
-		
-		self.public_key = PublicKey(cryptosystem, inner_public_key)
-		self.private_key = PrivateKey(cryptosystem, self.public_key, 
-									 inner_private_key)
+    """
+    A key pair object.
+    
+    Both this object's constructor and the new(EGCryptoSystem) method can be 
+    used to generate a new pair of private and corresponding public key.
+    
+    Attributes:
+        public_key::PublicKey    -- The public key
+        private_key::PrivateKey  -- The private key    
+    """
+    # ^ Redundant attribute description is redundant... redundantly
+    
+    def __init__(self, cryptosystem):
+        """
+        Generates a new key pair for the given EGCryptoSystem
+        """
+        p = cryptosystem.get_prime()
+        random = StrongRandom()
+        
+        inner_private_key = random.randint(1, p - 2)
+        
+        self.private_key = PrivateKey(cryptosystem, inner_private_key)
+        self.public_key = self.private_key.public_key
 

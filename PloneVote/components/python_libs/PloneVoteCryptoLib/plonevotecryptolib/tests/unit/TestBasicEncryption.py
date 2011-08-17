@@ -472,6 +472,26 @@ class TestPrivateKeySerialization(unittest.TestCase):
         
         # Delete the temporary file
         os.remove(file_path)
+                          
+    def test_load_invalid_file(self):
+        """
+        Test that loading a private key from a file in an invalid format 
+        raises an appropriate exception.
+        """
+        # Construct the path to the directory where our invalid test files are 
+        # located:
+        invalid_files_dir = os.path.join(os.path.dirname(__file__), 
+                                         "TestBasicEncryption.resources",
+                                         "invalid_privatekey_xml_files")
+        
+        # Add invalid private key files as needed                               
+        for file_name in ["err_missing_priv_key_elem.pvprivkey",
+                          "err_not_number_prime_elem.pvprivkey",
+                          "err_priv_key_too_large.pvprivkey"]:
+            inv_file = os.path.join(invalid_files_dir, file_name)
+            self.assertRaises(InvalidPloneVoteCryptoFileError, 
+                              PrivateKey.from_file, inv_file)
+         
         
 
 class TestCiphertextSerialization(unittest.TestCase):
