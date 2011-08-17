@@ -340,7 +340,7 @@ class TestPublicKeySerialization(unittest.TestCase):
         
     def test_get_fingerprint(self):
         """
-        Test that the PublicKey.get_fingerprint() always returns the same 
+        Test that PublicKey.get_fingerprint() always returns the same 
         fingerprint for the same PublicKey object and a different one for 
         another object.
         """
@@ -410,6 +410,28 @@ class TestPublicKeySerialization(unittest.TestCase):
         
         # Delete the temporary file
         os.remove(file_path)
+                          
+    def test_load_invalid_file(self):
+        """
+        Test that loading a public key from a file in an invalid format 
+        raises an appropriate exception.
+        """
+        # Construct the path to the directory where our invalid test files are 
+        # located:
+        invalid_files_dir = os.path.join(os.path.dirname(__file__), 
+                                         "TestBasicEncryption.resources",
+                                         "invalid_publickey_xml_files")
+        
+        # Add invalid private key files as needed                               
+        for file_name in ["err_missing_pub_key_elem.pvpubkey",
+                          "err_not_number_prime_elem.pvpubkey",
+                          "err_pub_key_too_large.pvpubkey"]:
+            inv_file = os.path.join(invalid_files_dir, file_name)
+            self.assertRaises(InvalidPloneVoteCryptoFileError, 
+                              PublicKey.from_file, inv_file)
+                              
+    # TODO: Test loading a serialized ThresholdPublicKey
+    # (Should work as soon as ThresholdPublicKey becomes serialize-enabled)
         
 
 class TestPrivateKeySerialization(unittest.TestCase):
@@ -515,7 +537,57 @@ class TestCiphertextSerialization(unittest.TestCase):
         # A message used to for encryption/decryption
         self.message = "This string will be encrypted and then decrypted. It " \
                        "contains some non-ascii chars and control chars:\n\t" \
-                       "ÄäÜüß ЯБГДЖЙŁĄŻĘĆŃŚŹ てすと ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃ."  
+                       "ÄäÜüß ЯБГДЖЙŁĄŻĘĆŃŚŹ てすと ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃ." 
+        
+    def test_equality_inequality(self):
+        """
+        Test Ciphertext's equality (==) and inequality (!=) operators.
+        """
+        # Create two different ciphertext (even if from the SAME plaintext):
+        ciph1 = self.public_key.encrypt_text(self.message)
+        ciph2 = self.public_key.encrypt_text(self.message)
+        
+        # Each ciphertext is equal to itself
+        self.assertTrue(ciph1 == ciph1)
+        self.assertFalse(ciph1 != ciph1)
+        self.assertTrue(ciph2 == ciph2)
+        self.assertFalse(ciph2 != ciph2)
+        
+        # They are not equal one to the other
+        self.assertTrue(ciph1 != ciph2)
+        self.assertFalse(ciph1 == ciph2)
+        
+    def test_get_fingerprint(self):
+        """
+        Test that Ciphertext.get_fingerprint() always returns the same 
+        fingerprint for the same Ciphertext object and a different one for 
+        another object.
+        """
+        # Create two ciphertext from the same public key and message
+        ciph1 = self.public_key.encrypt_text(self.message)
+        ciph2 = self.public_key.encrypt_text(self.message)
+        
+        # And a third from a different key and message
+        new_public_key = self.cryptosystem.new_key_pair().public_key
+        ciph3 = new_public_key.encrypt_text("New message")
+        
+        # Get each ciphertext's fingerprint
+        ciph1_fingerprint = ciph1.get_fingerprint()
+        ciph2_fingerprint = ciph2.get_fingerprint()
+        ciph3_fingerprint = ciph3.get_fingerprint()
+        
+        # Test that multiple calls to get_fingerprint() for the same Ciphertext 
+        # object always return the same fingerprint
+        for i in range(0, 20):
+            self.assertEqual(ciph1.get_fingerprint(), ciph1_fingerprint)
+            self.assertEqual(ciph2.get_fingerprint(), ciph2_fingerprint)
+            self.assertEqual(ciph3.get_fingerprint(), ciph3_fingerprint)
+            
+        # Check that fingerprints from different Ciphertext objects are 
+        # different
+        self.assertFalse(ciph1_fingerprint == ciph2_fingerprint)
+        self.assertFalse(ciph1_fingerprint == ciph3_fingerprint)
+        self.assertFalse(ciph2_fingerprint == ciph3_fingerprint)
         
     def test_save_load_file(self):
         """
@@ -555,6 +627,24 @@ class TestCiphertextSerialization(unittest.TestCase):
         
         # Delete the temporary file
         os.remove(file_path)
+                          
+    def test_load_invalid_file(self):
+        """
+        Test that loading a ciphertext from a file in an invalid format raises 
+        an appropriate exception.
+        """
+        # Construct the path to the directory where our invalid test files are 
+        # located:
+        invalid_files_dir = os.path.join(os.path.dirname(__file__), 
+                                         "TestBasicEncryption.resources",
+                                         "invalid_ciphertext_xml_files")
+        
+        # Add invalid ciphertext files as needed                               
+        for file_name in ["err_missing_enc_data.pvencrypted", 
+                          "err_invalid_nbits.pvencrypted"]:
+            inv_file = os.path.join(invalid_files_dir, file_name)
+            self.assertRaises(InvalidPloneVoteCryptoFileError, 
+                              Ciphertext.from_file, inv_file)
 
 
 if __name__ == '__main__':

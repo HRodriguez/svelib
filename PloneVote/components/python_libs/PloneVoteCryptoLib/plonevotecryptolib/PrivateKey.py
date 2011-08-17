@@ -45,8 +45,8 @@ import xml.dom.minidom
 from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem, EGStub
 from plonevotecryptolib.PublicKey import PublicKey
 from plonevotecryptolib.Ciphertext import Ciphertext
-from plonevotecryptolib.PVCExceptions import InvalidPloneVoteCryptoFileError
-from plonevotecryptolib.PVCExceptions import IncompatibleCiphertextError
+from plonevotecryptolib.PVCExceptions import InvalidPloneVoteCryptoFileError, \
+                                             IncompatibleCiphertextError
 from plonevotecryptolib.utilities.BitStream import BitStream
 import plonevotecryptolib.utilities.serialize as serialize
 # ============================================================================

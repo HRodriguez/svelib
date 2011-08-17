@@ -34,17 +34,46 @@
 # THE SOFTWARE.
 # ============================================================================
 
+
+
+# ============================================================================
+# Imports and constant definitions:
+# ============================================================================
+
 import math
 import xml.dom.minidom
 
 # secure version of python's random:
 from Crypto.Random.random import StrongRandom
-import Crypto.Hash.SHA256    # sha256 is not available in python 2.4 standard lib
+import Crypto.Hash.SHA256    # sha256 not available in python 2.4 standard lib
 
 from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem, EGStub
 from plonevotecryptolib.PVCExceptions import InvalidPloneVoteCryptoFileError
 from plonevotecryptolib.Ciphertext import Ciphertext
 from plonevotecryptolib.utilities.BitStream import BitStream
+import plonevotecryptolib.utilities.serialize as serialize
+# ============================================================================
+
+PublicKey_serialize_structure_definition = {
+    "PloneVotePublicKey" : (1, 1, {     # Root element
+        "PublicKey" : (1, 1, None),     # exactly 1 PublicKey element
+        "CryptoSystemScheme" : (1, 1, { # 1 cryptosystem element, containing:
+            "nbits" : (1, 1, None),     # exactly 1 nbits element
+            "prime" : (1, 1, None),     # exactly 1 prime element
+            "generator" : (1, 1, None)  # exactly 1 generator element
+         }),
+        "VerificationPartialPublicKeys" : (0, 1, {  # 0 or 1 occurrences
+            "PartialPublicKey" : (1, {  # 1 or more PartialPublicKey elements
+                "key" : (1, 1, None),    # exactly 1 key element
+                "trustee" : (1, 1, None) # exactly one trustee element
+             })
+         })
+    })
+}
+
+# ============================================================================
+# Classes:
+# ============================================================================
 
 
 class PublicKey:
@@ -190,7 +219,7 @@ class PublicKey:
         # We pull data from the bitstream one block at a time and encrypt it
         formated_bitstream.seek(0)
         ciphertext = \
-            Ciphertext(self.cryptosystem.get_nbits(), self.get_fingerprint())        
+            Ciphertext(self.cryptosystem.get_nbits(), self.get_fingerprint()) 
         
         plaintext_bits_left = formated_bitstream.get_length()
         
@@ -259,146 +288,122 @@ class PublicKey:
         bitstream.put_string(text)
         return self.encrypt_bitstream(bitstream, pad_to, task_monitor)
         
-    def _to_xml(self):
-        """
-        Returns an xml document containing a representation of this public key.
-        
-        Returns:
-            doc::xml.dom.minidom.Document
-        """
-        doc = xml.dom.minidom.Document()
-        root_element = doc.createElement("PloneVotePublicKey")
-        # This is a single public key, as opposed to a threshold one
-        root_element.setAttribute("type", "single")
-        doc.appendChild(root_element)
-        
-        key_element = doc.createElement("PublicKey")
-        key_str = hex(self._key)[2:]        # Remove leading '0x'
-        if(key_str[-1] == 'L'): 
-            key_str = key_str[0:-1]            # Remove trailing 'L'
-        key_element.appendChild(doc.createTextNode(key_str))
-        root_element.appendChild(key_element)
-        
-        cs_scheme_element = self.cryptosystem.to_dom_element(doc)
-        root_element.appendChild(cs_scheme_element)
-        
-        return doc
-        
-    def to_file(self, filename):
+    def to_file(self, filename, SerializerClass=serialize.XMLSerializer):
         """
         Saves this public key to a file.
-        """
-        doc = self._to_xml()
-        
-        file_object = open(filename, "w")
-        file_object.write(doc.toprettyxml())
-        file_object.close()
-    
-    @classmethod    
-    def _parse_root_element(cls, root_element):
-        """
-        Parses the contents of the <PloneVoteCryptoLib> node of the public 
-        key's XML format.
         
         Arguments:
-            root_element::xml.dom.minidom.Node -- The <PloneVoteCryptoLib> node.
-        
-        Returns:
-            (cryptosystem,key)::(EGCryptoSystem,long) --
-                The parsed and verified cryptosystem and inner public key 
-                contained within the <PloneVoteCryptoLib> node.
+            filename::string    -- The path to the file in which to store the 
+                                   serialized PublicKey object.
+            SerializerClass::class --
+                The class that provides the serialization. XMLSerializer by 
+                default. Must inherit from serialize.BaseSerializer and provide 
+                an adequate serialize_to_file method.
+                Note that often the same class used to serialize the data must 
+                be used to deserialize it.
+                (see utilities/serialize.py documentation for more information)
         """
-        # NOTE: This method is separated from from_file() so that 
-        # ThesholdPublicKey may call it as well, without repeating code.
+        # Create a new serializer object for the PublicKey structure definition
+        serializer = SerializerClass(PublicKey_serialize_structure_definition)
         
-        # Retrieve individual "tier 2" nodes
-        cs_scheme_element = key_element = None
+        # Helper function to translate large numbers to their hexadecimal 
+        # string representation
+        def num_to_hex_str(num):
+            hex_str = hex(num)[2:]              # Remove leading '0x'
+            if(hex_str[-1] == 'L'): 
+                hex_str = hex_str[0:-1]         # Remove trailing 'L'
+            return hex_str
         
-        for node in root_element.childNodes:
-            if node.nodeType == node.ELEMENT_NODE:
-                if node.localName == "PublicKey":
-                    key_element = node
-                elif node.localName == "CryptoSystemScheme":
-                    cs_scheme_element = node
-                    
-        # Check CryptoSystemScheme node
-        if(cs_scheme_element == None):
-            raise InvalidPloneVoteCryptoFileError(filename, 
-                "A PloneVoteCryptoLib stored public key file must contain " \
-                "a CryptoSystemScheme element")
+        # Generate a serializable data dictionary matching the definition:
+        prime_str = num_to_hex_str(self.cryptosystem.get_prime())
+        generator_str = num_to_hex_str(self.cryptosystem.get_generator())
+        data = {
+            "PloneVotePublicKey" : {
+                "PublicKey" : num_to_hex_str(self._key),
+                "CryptoSystemScheme" : {
+                    "nbits" : str(self.cryptosystem.get_nbits()),
+                    "prime" : prime_str,
+                    "generator" : generator_str
+                }
+            }
+        }
         
-        # Parse the inner CryptoSystemScheme element using the parser defined
-        # in EGStub
-        (nbits, prime, generator) = \
-                    EGStub.parse_crytosystem_scheme_xml_node(cs_scheme_element)    
+        # Use the serializer to store the data to file
+        serializer.serialize_to_file(filename, data)
         
-        # Check the actual key information
-        if(key_element == None):
-            raise InvalidPloneVoteCryptoFileError(filename, 
-                "The PloneVoteCryptoLib stored public key file must contain " \
-                "a <PublicKey> element, with the value of the public key " \
-                " inside it.")
-                
-        if(len(key_element.childNodes) != 1 or 
-            key_element.childNodes[0].nodeType != key_element.childNodes[0].TEXT_NODE):
-            
-            raise InvalidPloneVoteCryptoFileError(filename, 
-                "The PloneVoteCryptoLib stored public key file must contain " \
-                "a <PublicKey> element, with the value of the public key " \
-                " inside it.")
+    @classmethod
+    def from_file(cls, filename, SerializerClass=serialize.XMLSerializer):
+        """
+        Loads an instance of PublicKey from the given file.
         
-        key_str = key_element.childNodes[0].data.strip()    # trim spaces
+        Arguments:
+            filename::string    -- The name of a file containing the public 
+                                   key in serialized form.
+            SerializerClass::class --
+                The class that provides the deserialization. XMLSerializer by 
+                default. Must inherit from serialize.BaseSerializer and provide 
+                an adequate deserialize_from_file method.
+                Note that often the same class used to serialize the data must 
+                be used to deserialize it.
+                (see utilities/serialize.py documentation for more information)
+        
+        Throws:
+            InvalidPloneVoteCryptoFileError -- If the file is not a valid 
+                                               PloneVoteCryptoLib stored 
+                                               public key file.
+        """
+        # Create a new serializer object for the PublicKey structure definition
+        serializer = SerializerClass(PublicKey_serialize_structure_definition)
+        
+        # Deserialize the PublicKey instance from file
         try:
-            key = int(key_str, 16)
-        except ValueError:
+            data = serializer.deserialize_from_file(filename)
+        except serialize.InvalidSerializeDataError, e:
+            # Convert the exception to an InvalidPloneVoteCryptoFileError
             raise InvalidPloneVoteCryptoFileError(filename, 
-                "The value of the public key given in the file is invalid. " \
-                "(could the file be corrupt?).")
+                "File \"%s\" does not contain a valid public key. The " \
+                "following error occurred while trying to deserialize the " \
+                "file contents: %s" % (filename, str(e)))
+                
+        # Verify that we are dealing with a single public key and not a 
+        # threshold public key. In the later case, call 
+        # ThresholdPublicKey.from_file on the given file, instead of this 
+        # method.
+        if(data["PloneVotePublicKey"].has_key("VerificationPartialPublicKeys")):
+            from plonevotecryptolib.Threshold.ThresholdPublicKey import \
+                                              ThresholdPublicKey
+            return ThresholdPublicKey.from_file(filename, SerializerClass)
+                
+        # Helper function to decode numbers from strings and 
+        # raise an exception if the string is not a valid number.
+        # (value_name is used only to construct the exception string).
+        def str_to_num(num_str, base, value_name):
+            try:
+                return int(num_str, base)
+            except ValueError:
+                raise InvalidPloneVoteCryptoFileError(filename, 
+                    "File \"%s\" does not contain a valid public key. The " \
+                    "stored value for %s is not a valid integer in " \
+                    "base %d representation." % (filename, value_name, base))
+                    
+        # Get the values from the deserialized data
+        inner_elems = data["PloneVotePublicKey"]["CryptoSystemScheme"]
+        nbits = str_to_num(inner_elems["nbits"], 10, "nbits")
+        prime = str_to_num(inner_elems["prime"], 16, "prime")
+        generator = str_to_num(inner_elems["generator"], 16, "generator")
         
-        if(not (0 <= key < prime)):
+        pub_key = str_to_num(data["PloneVotePublicKey"]["PublicKey"], 
+                                  16, "PublicKey")
+        
+        # Check the loaded values
+        if(not (1 <= pub_key <= prime - 2)):
             raise InvalidPloneVoteCryptoFileError(filename, 
-                "The value of the public key given in the file is invalid " \
-                "for the indicated cryptosystem (could the file be corrupt?).")
+                "File \"%s\" does not contain a valid public key. The value " \
+                "of the public key given in the file does not match the " \
+                "indicated cryptosystem. Could the file be corrupt?" % filename)
         
         # Construct the cryptosystem object
         cryptosystem = EGCryptoSystem.load(nbits, prime, generator)
         
-        return (cryptosystem, key)
-        
-    @classmethod
-    def from_file(cls, filename):
-        """
-        Loads a public key from file.
-        """
-        doc = xml.dom.minidom.parse(filename)
-        
-        # Check root element
-        if(len(doc.childNodes) != 1 or 
-            doc.childNodes[0].nodeType != doc.childNodes[0].ELEMENT_NODE or
-            doc.childNodes[0].localName != "PloneVotePublicKey"):
-            
-            raise InvalidPloneVoteCryptoFileError(filename, 
-                "A PloneVoteCryptoLib stored public key file must be an " \
-                "XML file with PloneVotePublicKey as its root element.")    
-        
-        root_element = doc.childNodes[0]
-        
-        # Verify that we are dealing with a single public key and not a 
-        # threshold one.
-        type_attribute = root_element.getAttribute("type")
-        if(type_attribute == "single"):
-            pass        # this is the expected value, lets continue parsing
-        elif(type_attribute == "threshold"):
-            # We load this file as a threshold key instead!
-            from plonevotecryptolib.Threshold.ThresholdPublicKey \
-                                        import ThresholdPublicKey
-            return ThresholdPublicKey.from_file(filename)
-        else:
-            raise InvalidPloneVoteCryptoFileError(filename, 
-                "Unknown public key type \"%s\". Valid public key types are " \
-                "\"single\" and \"threshold\"." % type_attribute)
-        
-        (cryptosystem, key) = PublicKey._parse_root_element(root_element)
-        
         # Construct and return the PublicKey object
-        return cls(cryptosystem, key)
+        return cls(cryptosystem, pub_key)

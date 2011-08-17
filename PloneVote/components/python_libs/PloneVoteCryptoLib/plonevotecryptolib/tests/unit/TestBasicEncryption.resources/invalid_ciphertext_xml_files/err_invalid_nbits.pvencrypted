@@ -1,0 +1,12 @@
+<?xml version="1.0" ?>
+<PloneVoteCiphertext>
+	<nbits>
+		Dog
+	</nbits>
+	<PKFingerprint>
+		d24fb72323d0a066d6b4d1d4c18ebbe0383e7619a0a95b49d0dc5b676218073f
+	</PKFingerprint>
+	<EncryptedData>
+		vI0AT30s1gU7ytAC0fZQyK5gvNJ5LQG/VcqoauGAek07dsK4liSwX5Ev8Thmvypz2X1QEV8uZi187GoveNpfZX1tKQ71LAzkEsrpsxqonKeTDDT829FPJLSl6HoWfnyIVZrrJNjFTRfhtJjiGL0hL1/2ZoBI3SEcdBe+c6QbJsKKTtdPcrDwWeIP7FhaCm75Gj+O9LADnngqBO3oWXyMMY9EDJInHj7lsJR/cnYS2fUvyK2SIpYWSThXiWGu/BC6+fPb3oZzs3nOI2WMXRFtoRktL+RxDf0gm7Y8eA2Dv9IaSOKvSvJLaQorH+giZu//zdeNuBUICyjuF3/Bc/5a/zfcO6pRNCz/ihxVQCxQj5pAiI3zxFdzeH2fsgz6UQ9PJUxVu8dvOCLTqtfHsy3dOMCQdwnLQHZC+DIjyQdecDis2yQnbJ1GoASt5Uz62ofsEyjNWuq8gEhUvuCPNCyzxOHQHRPGVlw48ulPyS1+Qj0lva7M+2SCrEEmtvGrFZ9AMZUt50enD6plNTakQNd+EqL89a5ftkWZslzxck/89ZBX5ZHBxsr2A31G1ohFaRnejYqb7NjY19lkcG+cQkbAmLdHpnoo4E6hi4bjQQRZX2WYa9Cfel6+CuNF4GA/UEN/+Z+mrpc+TU+3/AQc7loipZq6tZ7b+h3bRZCfDHhjT1s=
+	</EncryptedData>
+</PloneVoteCiphertext>

@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<PloneVoteCiphertext>
+	<nbits>
+		1024
+	</nbits>
+	<PKFingerprint>
+		d24fb72323d0a066d6b4d1d4c18ebbe0383e7619a0a95b49d0dc5b676218073f
+	</PKFingerprint>
+</PloneVoteCiphertext>

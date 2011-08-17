@@ -53,11 +53,30 @@
 # immediate problem).
 #
 ##
+
+# ============================================================================
+# Imports and constant definitions:
+# ============================================================================
 import xml.dom.minidom
 
-import Crypto.Hash.SHA256    # sha256 is not available in python 2.4 standard lib
+import Crypto.Hash.SHA256    # sha256 not available in python 2.4 standard lib
 
+from plonevotecryptolib.PVCExceptions import InvalidPloneVoteCryptoFileError
 from plonevotecryptolib.utilities.BitStream import BitStream
+import plonevotecryptolib.utilities.serialize as serialize
+# ============================================================================
+
+Ciphertext_serialize_structure_definition = {
+    "PloneVoteCiphertext" : (1, 1, {    # Root element
+        "nbits" : (1, 1, None),         # exactly 1 nbits element
+        "PKFingerprint" : (1, 1, None), # exactly 1 PKFingerprint element
+        "EncryptedData" : (1, 1, None)  # exactly 1 EncryptedData element
+    })
+}
+
+# ============================================================================
+# Classes:
+# ============================================================================
 
 class CiphertextIterator:
     """
@@ -199,8 +218,8 @@ class Ciphertext:
         Create an empty ciphertext object.
         
         Arguments:
-            nbits::int    -- Size in bits of the cryptosystem/public key used to 
-                           encrypt this ciphertext.
+            nbits::int    -- Size in bits of the cryptosystem/public key used 
+                             to encrypt this ciphertext.
             public_key_fingerprint::string    -- The fingerprint of the public 
                                                key used to encrypt this data.
         """
@@ -255,128 +274,89 @@ class Ciphertext:
                 "The ciphertext data must be a multiple of eight bits in size."
                 
         return bitstream.get_base64(length)
-        
-        
-    def _to_xml(self):
-        """
-        Returns an xml document containing a representation of this ciphertext.
-        
-        Returns:
-            doc::xml.dom.minidom.Document
-        """
-        doc = xml.dom.minidom.Document()
-        root_element = doc.createElement("PloneVoteCiphertext")
-        doc.appendChild(root_element)
-        
-        nbits_element = doc.createElement("nbits")
-        nbits_element.appendChild(doc.createTextNode(str(self.nbits)))
-        root_element.appendChild(nbits_element)
-        
-        pkfingerprint_element = doc.createElement("PKFingerprint")
-        pkfingerprint_element.appendChild(doc.createTextNode(self.pk_fingerprint))
-        root_element.appendChild(pkfingerprint_element)
-        
-        data_element = doc.createElement("EncryptedData")
-        data = self._encrypted_data_as_base64()
-        data_element.appendChild(doc.createTextNode(data))
-        root_element.appendChild(data_element)
-        
-        return doc
-        
-    def to_file(self, filename):
+    
+    def to_file(self, filename, SerializerClass=serialize.XMLSerializer):
         """
         Saves this ciphertext to a file.
-        """
-        doc = self._to_xml()
         
-        file_object = open(filename, "w")
-        file_object.write(doc.toprettyxml())
-        file_object.close()
-    
+        Arguments:
+            filename::string    -- The path to the file in which to store the 
+                                   serialized Ciphertext object.
+            SerializerClass::class --
+                The class that provides the serialization. XMLSerializer by 
+                default. Must inherit from serialize.BaseSerializer and provide 
+                an adequate serialize_to_file method.
+                Note that often the same class used to serialize the data must 
+                be used to deserialize it.
+                (see utilities/serialize.py documentation for more information)
+        """
+        # Create a new serializer object for the Ciphertext structure definition
+        serializer = SerializerClass(Ciphertext_serialize_structure_definition)
+        
+        # Generate a serializable data dictionary matching the definition:
+        data = {
+            "PloneVoteCiphertext" : {
+                "nbits" : str(self.nbits),
+                "PKFingerprint" : self.pk_fingerprint,
+                "EncryptedData" : self._encrypted_data_as_base64()
+            }
+        }
+        
+        # Use the serializer to store the data to file
+        serializer.serialize_to_file(filename, data)
+        
     @classmethod
-    def from_file(cls, filename):
+    def from_file(cls, filename, SerializerClass=serialize.XMLSerializer):
         """
-        Loads a ciphertext from file.
+        Loads an instance of Ciphertext from the given file.
+        
+        Arguments:
+            filename::string    -- The name of a file containing the ciphertext 
+                                   in serialized form.
+            SerializerClass::class --
+                The class that provides the deserialization. XMLSerializer by 
+                default. Must inherit from serialize.BaseSerializer and provide 
+                an adequate deserialize_from_file method.
+                Note that often the same class used to serialize the data must 
+                be used to deserialize it.
+                (see utilities/serialize.py documentation for more information)
+        
+        Throws:
+            InvalidPloneVoteCryptoFileError -- If the file is not a valid 
+                                               PloneVoteCryptoLib stored 
+                                               ciphertext file.
         """
-        doc = xml.dom.minidom.parse(filename)
+        # Create a new serializer object for the Ciphertext structure definition
+        serializer = SerializerClass(Ciphertext_serialize_structure_definition)
         
-        # Check root element
-        if(len(doc.childNodes) != 1 or 
-            doc.childNodes[0].nodeType != doc.childNodes[0].ELEMENT_NODE or
-            doc.childNodes[0].localName != "PloneVoteCiphertext"):
-            
+        # Deserialize the Ciphertext instance from file
+        try:
+            data = serializer.deserialize_from_file(filename)
+        except serialize.InvalidSerializeDataError, e:
+            # Convert the exception to an InvalidPloneVoteCryptoFileError
             raise InvalidPloneVoteCryptoFileError(filename, 
-                "A PloneVoteCryptoLib stored ciphertext file must be an " \
-                "XML file with PloneVoteCiphertext as its root element.")    
-        
-        root_element = doc.childNodes[0]
-        
-        nbits_element = fingerprint_element = data_element = None
-        
-        # Retrieve individual "tier 2" nodes
-        for node in root_element.childNodes:
-            if node.nodeType == node.ELEMENT_NODE:
-                if node.localName == "nbits":
-                    nbits_element = node
-                elif node.localName == "PKFingerprint":
-                    fingerprint_element = node
-                elif node.localName == "EncryptedData":
-                    data_element = node
+                "File \"%s\" does not contain a valid ciphertext. The " \
+                "following error occurred while trying to deserialize the " \
+                "file contents: %s" % (filename, str(e)))
                     
-        # Check nbits node
-        if(nbits_element == None):
+        # Get the values from the deserialized data
+        try:
+            nbits = int(data["PloneVoteCiphertext"]["nbits"])
+        except ValueError:
             raise InvalidPloneVoteCryptoFileError(filename, 
-                "The PloneVoteCryptoLib stored ciphertext file must include " \
-                "the used cryptosystem's key size in bits.")
-                
-        if(len(nbits_element.childNodes) != 1 or 
-            nbits_element.childNodes[0].nodeType != nbits_element.childNodes[0].TEXT_NODE):
-            
-            raise InvalidPloneVoteCryptoFileError(filename, 
-                "The PloneVoteCryptoLib stored ciphertext file must include " \
-                "the used cryptosystem's key size in bits.")
+                    "File \"%s\" does not contain a valid ciphertext. The " \
+                    "stored value for nbits is not a valid (decimal) integer." \
+                    % filename)
         
-        nbits_str = nbits_element.childNodes[0].data.strip()    # trim spaces
-        nbits = int(nbits_str)
-                    
-        # Check fingerprint node
-        if(fingerprint_element == None):
-            raise InvalidPloneVoteCryptoFileError(filename, 
-                "The PloneVoteCryptoLib stored ciphertext file must include " \
-                "the fingerprint of the public key used to encrypt it.")
-                
-        if(len(fingerprint_element.childNodes) != 1 or 
-            fingerprint_element.childNodes[0].nodeType != fingerprint_element.childNodes[0].TEXT_NODE):
-            
-            raise InvalidPloneVoteCryptoFileError(filename, 
-                "The PloneVoteCryptoLib stored ciphertext file must include " \
-                "the fingerprint of the public key used to encrypt it.")
-        
-        #    trim spaces
-        fingerprint_str = fingerprint_element.childNodes[0].data.strip()
-        
-        # Check the EncryptedData node
-        if(data_element == None):
-            raise InvalidPloneVoteCryptoFileError(filename, 
-                "The PloneVoteCryptoLib stored ciphertext file must include " \
-                "the encrypted data inside an <EncryptedData> element.")
-                
-        if(len(data_element.childNodes) != 1 or 
-            data_element.childNodes[0].nodeType != data_element.childNodes[0].TEXT_NODE):
-            
-            raise InvalidPloneVoteCryptoFileError(filename, 
-                "The PloneVoteCryptoLib stored ciphertext file must include " \
-                "the encrypted data inside an <EncryptedData> element.")
-        
-        #    trim spaces
-        data_str = data_element.childNodes[0].data.strip()
+        fingerprint_str = data["PloneVoteCiphertext"]["PKFingerprint"]
+        enc_data_str = data["PloneVoteCiphertext"]["EncryptedData"]
         
         # Construct a new Ciphertext object with the given nbits and fingerprint
         ciphertext = cls(nbits, fingerprint_str)
         
         # Load the encrypted data
         bitstream = BitStream()
-        bitstream.put_base64(data_str)
+        bitstream.put_base64(enc_data_str)
         bitstream.seek(0)
         length = bitstream.get_length()
         
