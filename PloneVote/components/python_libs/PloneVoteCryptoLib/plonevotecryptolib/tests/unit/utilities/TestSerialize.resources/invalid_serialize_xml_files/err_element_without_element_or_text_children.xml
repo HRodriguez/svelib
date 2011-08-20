@@ -1,0 +1,15 @@
+<?xml version="1.0" ?>
+<person>
+	<age>
+		42
+	</age>
+	<names>
+		<last>
+			Pérez
+		</last>
+		<last>
+			Hernández
+		</last>
+		<first attr="Pepe" />
+	</names>
+</person>

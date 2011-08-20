@@ -79,8 +79,8 @@ from plonevotecryptolib.KeyPair import KeyPair
 
 # plonevotecryptolib.tests.* imports
 # Get Counter and Logger from TestTaskMonitor
-from plonevotecryptolib.tests.unit.TestTaskMonitor import (Counter as Counter,\
-                                                           Logger as Logger)
+from plonevotecryptolib.tests.unit.utilities.TestTaskMonitor import \
+                                        (Counter as Counter, Logger as Logger)
     
 # ============================================================================
 # Helper functions and other definitions:
