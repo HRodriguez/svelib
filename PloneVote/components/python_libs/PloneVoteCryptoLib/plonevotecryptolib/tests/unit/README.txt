@@ -33,6 +33,8 @@ utilities/  -- Unit tests for the modules in plonevotecryptolib.utilities.*
 
 threshold/  -- Unit tests for the modules in plonevotecryptolib.Threshold.*
 
+    TestPolynomial.py   -- test for plonevotecryptolib.Threshold.Polynomial
+
 
 mixnet/     -- Unit tests for the modules in plonevotecryptolib.Mixnet.*
 

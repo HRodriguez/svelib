@@ -69,9 +69,9 @@ class CoefficientsPolynomial:
 		Returns the (index)th coefficient of the polynomial.
 		(ie. c_{index} if P(x) = sum(c_{i}x^{i}) )
 		"""
-		if(not (0 <= index < self._degree)):
-			raise ValueError("Coefficient index out of range: got %d expected" \
-							 " index in [0, %d]" % (index, self._degree))
+		if(not (0 <= index <= self.get_degree())):
+			raise ValueError("Coefficient index out of range: got %d expected "\
+							 "index in [0, %d]" % (index, self.get_degree()))
 							 
 		return self._coefficients[index]
 	
@@ -110,8 +110,6 @@ class CoefficientsPolynomial:
 		
 		self._coefficients = []
 		for coeff in coefficients:
-			if(not isinstance(coeff, (int, long))):
-				raise ValueError("All coefficients must be integers.")
 			self._coefficients.append(coeff % self._modulus)
 	
 	@classmethod
