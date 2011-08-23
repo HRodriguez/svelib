@@ -1,39 +1,10 @@
-	21 Ene:
-		- threshold encryption
-		
-	+ Threshold private key generation
-	+ Threshold decryption
-	+ Threshold verifiable decryption
-	
+INCOMPLETE:	
 	- Save commitments to file
 	- Load commitments from file
 	- Load threshold private keys from file
 	- Save partial decryptions to file
 	- Load partial decryptions from file
 	- task_monitor support for threshold key set-up? 
-	
-	- XML serializer ?
-		
-	Next week:
-		+ mixnets
-		+ proof of shuffling
-		+ verifiable decryption
-
-Early optimization is the O(sqrt(n)*lg^2(n)) of all evil...
-
-
-from utilities.BitStream import BitStream as BS
-bs = BS()
-
-s = ""
-for i in range(0,100):
-	s += "DEADBEEF"
-
-num = int(s, 16)
-bit_length = 4*8*100
-bs.put_num(num, bit_length)
-
-print [hex(c)[2:-1] for c in bs._cells]
 
 Potential security issue:
 	- Are votes with a fully 0'ed block in their plaintext detectable across re-encryptions?
@@ -54,5 +25,6 @@ TODO:
     - Consider adding protection against attacks on privacy based on vote copying
         See. Bulens, Giry, Pereira, "Running mixnet-based elections with Helios" (http://www.usenix.org/events/evtwote11/tech/final_files/Bulens.pdf)
         and Pfitzmann , B., and Pfitzmann , A. "How to break the direct rsa-implementation of mixes".
+    - Fix egg information.
 
 
