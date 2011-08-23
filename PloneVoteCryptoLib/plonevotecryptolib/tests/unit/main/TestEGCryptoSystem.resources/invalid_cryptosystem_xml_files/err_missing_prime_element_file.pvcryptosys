@@ -1,0 +1,17 @@
+<?xml version="1.0" ?>
+<PloneVoteCryptoSystem>
+	<name>
+		Default 1024bit Cryptosystem
+	</name>
+	<description>
+		The default 1024 bits cryptosystem included with PloneVote. This cryptosystem may be breakable now by an attacker with high computational resources.
+	</description>
+	<CryptoSystemScheme>
+		<nbits>
+			1024
+		</nbits>
+		<generator>
+			B3FD247DE45D5551175D44848EB47FDD45828E511FD3C6200404806D35285A4C6F807F7AE968CBE20A42FA42D0EEF7720C343384EDA8D1E68057167134B976D4F1B55237EFA990F7449A2C4CAF4712643B0A86FDA808F307CBDB415D1F52225DB0B460A6ACD3D980B9A3E22F7DB93311624EF06B7A5A278BD7C969A022A1C8A7
+		</generator>
+	</CryptoSystemScheme>
+</PloneVoteCryptoSystem>
