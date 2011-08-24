@@ -5,6 +5,8 @@ voter-verifiable elections
 BASIC INFORMATION:
 ==============================================================================
 
+Current owner: Hugo Rodriguez (sn4ke@ciencias.unam.mx)
+
 Originally developed by: Lázaro Clapp (lazaro.clapp@gmail.com)
 
 License: MIT (see PloneVoteCryptoLib/COPYRIGHT.txt)
