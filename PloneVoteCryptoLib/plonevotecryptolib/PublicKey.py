@@ -62,7 +62,9 @@ PublicKey_serialize_structure_definition = {
             "prime" : (1, 1, None),     # exactly 1 prime element
             "generator" : (1, 1, None)  # exactly 1 generator element
          }),
-        "VerificationPartialPublicKeys" : (0, 1, {  # 0 or 1 occurrences
+        "ThresholdKeyInfo" : (0, 1, {  # 0 or 1 occurrences
+            "NumTrustees" : (1, 1, None),
+            "Threshold" : (1, 1, None),
             "PartialPublicKey" : (1, {  # 1 or more PartialPublicKey elements
                 "key" : (1, 1, None),    # exactly 1 key element
                 "trustee" : (1, 1, None) # exactly one trustee element
@@ -84,8 +86,6 @@ class PublicKey:
         cryptosystem::EGCryptoSystem    -- The ElGamal cryptosystem in which 
                                            this key is defined.
     """
-    
-    cryptosystem = None
     
     def get_fingerprint(self):
         """
@@ -369,7 +369,7 @@ class PublicKey:
         # threshold public key. In the later case, call 
         # ThresholdPublicKey.from_file on the given file, instead of this 
         # method.
-        if(data["PloneVotePublicKey"].has_key("VerificationPartialPublicKeys")):
+        if(data["PloneVotePublicKey"].has_key("ThresholdKeyInfo")):
             from plonevotecryptolib.Threshold.ThresholdPublicKey import \
                                               ThresholdPublicKey
             return ThresholdPublicKey.from_file(filename, SerializerClass)

@@ -256,14 +256,25 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
 
         # Change commitment.threshold value to try erros
         commitment.num_trustees = self.num_trustees
-        commitment.threshold = self.threshold+1;
+        commitment.threshold = self.threshold+1
         # add_trustee_commitmnet must raise IncompatibleCommitmentError when
         # the commitment has diferent theshold  value
         self.assertRaises(IncompatibleCommitmentError, 
                           tSetUp.add_trustee_commitment, 1, commitment)
                           
-        #TODO
         # Test what happens with invalid cryptosystem
+        # Create another cryptosystem
+        second_cryptosys_file = os.path.join(os.path.dirname(__file__), 
+                                      "TestThresholdEncryptionSetUp.resources",
+                                      "test1024bits_second.pvcryptosys")
+        # Load the cryptosystem from file
+        second_cryptosys = EGCryptoSystem.from_file(second_cryptosys_file)
+        commitment.threshold = self.threshold
+        commitment.cryptosystem = second_cryptosys
+        # Must raise IncompatibleCommitmentError with diferent cryptosys  
+        self.assertRaises(IncompatibleCommitmentError, 
+                          tSetUp.add_trustee_commitment, 1, commitment)
+        
                           
     def test_get_fingerprint(self):    
         """
@@ -307,8 +318,8 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
         fingerprintb = tSetUp.get_fingerprint()
         self.assertEquals(fingerprint,fingerprintb)
         
-        # We create a diferent ThresholdEncryptionSetUp to genera another fingerprint that
-        # should not match
+        # We create a diferent ThresholdEncryptionSetUp to genera another 
+        # fingerprint that should not match
         tSetUp2 = ThresholdEncryptionSetUp(cryptosystem, 
                                           self.num_trustees-1, self.threshold-1)                         
         for i in range(self.num_trustees-1):
@@ -363,11 +374,17 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
                                 
         publickey = tSetUp.generate_public_key()
         
-        # The generated public key must have the sames trustees and threshold
+        # The generated public key must have the same cryptosystem, trustees 
+        # and threshold
+        self.assertEqual(publickey.cryptosystem, cryptosystem)
         self.assertEqual(publickey.num_trustees, self.num_trustees)
         self.assertEqual(publickey.threshold, self.threshold)
-        #TODO:
-        # How to test publickey._key ????
+        
+        # Check that multiple calls generate the same public key
+        publickey2 = tSetUp.generate_public_key()
+        self.assertEqual(publickey2, publickey)
+        self.assertEqual(publickey2.get_fingerprint(), 
+                         publickey.get_fingerprint())
 
     def test_generate_keypar(self):
         """
@@ -415,6 +432,41 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
         #TODO:
         # How to test malicious commitmens or invalid ones                
         keypar = tSetUp.generate_key_pair(0,self.trustees[0].private_key)
+        
+        # Create a second ThresholdEcryptionSetUp to create a second
+        # thresold ebcryption set up and generate errors
+        second_cryptosys_file = os.path.join(os.path.dirname(__file__), 
+                                      "TestThresholdEncryptionSetUp.resources",
+                                      "test1024bits_second.pvcryptosys")
+        # Load the cryptosystem from file
+        second_cryptosys = EGCryptoSystem.from_file(second_cryptosys_file)      
+        secondtSetUp = ThresholdEncryptionSetUp(second_cryptosys, 
+                                          self.num_trustees, self.threshold)
+         # Adding the keys from trustees for 2ndsetUp
+        for i in range(self.num_trustees):
+            secondtSetUp.add_trustee_public_key(i, self.trustees[i].public_key)
+        
+        secondcommitments = []
+        # Generate commitmes for trustees for 2ndsetUp
+        for i in range(self.num_trustees):
+            secondcommitments.append(secondtSetUp.generate_commitment())       
+        
+        # Must raise InvalidCommitmentError becouse we adding an invalid
+        # commitment
+        commitemp = tSetUp._trustees_commitments[0]
+        tSetUp._trustees_commitments[0] = secondcommitments[0]     
+        self.assertRaises(InvalidCommitmentError,tSetUp.generate_key_pair,
+                          0,self.trustees[0].private_key)
+        tSetUp._trustees_commitments[0] = commitemp
+                          
+        # Must Raise InvalidCommitmentError becouse we are modifying a
+        # public coefficient from a trustee
+        tSetUp._trustees_commitments[0].public_coefficients[0] = 2;
+        self.assertRaises(InvalidCommitmentError,tSetUp.generate_key_pair,
+                          0,self.trustees[0].private_key)                          
+        
+            
+        
              
     def test_generate_privatekey(self):
         """
@@ -461,8 +513,13 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
                      
         privatekey = tSetUp.generate_private_key(0,self.trustees[0].private_key)
         
-        #TODO:
-        # How to test the obtained private key almost done 95%   
+        # The privatekey atributes must be the expected from  tSetUp
+        self.assertTrue(privatekey.cryptosystem, cryptosystem)
+        self.assertEqual(privatekey.num_trustees, self.num_trustees)
+        self.assertEqual(privatekey.threshold, self.threshold)
+        self.assertEqual(privatekey.public_key, 
+                         tSetUp.generate_public_key()) 
+        
              
 if __name__ == '__main__':
     unittest.main()        

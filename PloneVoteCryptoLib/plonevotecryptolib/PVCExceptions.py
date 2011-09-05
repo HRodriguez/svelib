@@ -242,6 +242,85 @@ class IncompatibleCiphertextError(ParameterError):
 		ParameterError.__init__(self, msg)
 
 
+# ============================================================================
+# Exceptions used by Threshold.*
+# ============================================================================
+
+
+class ThresholdEncryptionSetUpStateError(Exception):
+	"""
+	Raised when a ThresholdEncryptionSetUp operation is called when the 
+	instance is in an inappropriate state.
+	
+	Common examples:
+		- generate_commitment called without having registered all the 
+		  trustees' public keys.
+		- get_fingerprint called without having registered all the trustees' 
+		  commitments.
+		- generate_threshold_keypair called without having registered all the 
+		  trustees' commitments.				
+	"""
+    
+	def __str__(self):
+		return self.msg
+
+	def __init__(self, msg):
+		"""
+		Create a new ThresholdEncryptionSetUpStateError exception.
+		"""
+		self.msg = msg
+
+
+class IncompatibleCommitmentError(Exception):
+	"""
+	Raised when ThresholdEncryptionSetUp.add_trustee_commitment is given a 
+	ThresholdEncryptionCommitment that is not compatible with the current 
+	ThresholdEncryptionSetUp instance. 
+	(ie. has a different number of trustees)
+	"""
+    
+	def __str__(self):
+		return self.msg
+
+	def __init__(self, msg):
+		"""
+		Create a new IncompatibleCommitmentError exception.
+		"""
+		self.msg = msg
+
+
+class InvalidCommitmentError(ElectionSecurityError):
+	"""
+	Raised when a ThresholdEncryptionCommitment is detected to be invalid.
+	
+	For example, when it is found that a partial private key given in the 
+	commitment is not consistent with its public coefficients.
+	
+	This is an election security error. If raised, the election process may 
+	only safely continue if the detected invalid commitment is replaced with a 
+	correct one and threshold public and private keys are generated again from 
+	scratch.
+	
+	Attributes:
+		trustee::int	-- The number of the trustee to which the invalid 
+						   commitment is associated.
+		commitment::ThresholdEncryptionCommitment	-- The invalid commitment.
+	"""
+
+	def __init__(self, trustee, commitment, msg):
+		"""
+		Create a new ThresholdEncryptionSetUpStateError exception.
+		"""
+		ElectionSecurityError.__init__(self, msg)
+		self.trustee = trustee
+		self.commitment = commitment
+
+
+# ============================================================================
+# Exceptions used by Mixnet.*
+# ============================================================================
+
+
 class IncompatibleReencryptionInfoError(ParameterError):
 	"""
 	Signals an attempt to operate on incompatible CiphertextReencryptionInfo 

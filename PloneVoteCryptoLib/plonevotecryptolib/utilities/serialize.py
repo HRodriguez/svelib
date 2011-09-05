@@ -37,7 +37,6 @@
 # THE SOFTWARE.
 # ============================================================================
 
-# Module level documentation #TODO
 """serialize.py : A general serializer module for PloneVoteCryptoLib
 
 This utility module provides serializer classes to store (serialize) and 

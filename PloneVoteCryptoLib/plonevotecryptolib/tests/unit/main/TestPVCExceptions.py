@@ -74,7 +74,10 @@ class TestPVCExceptions(unittest.TestCase):
                      (IncompatibleCiphertextCollectionError, (message)),
                      (IncompatibleCiphertextCollectionMappingError, (message)),
                      (InvalidCiphertextCollectionMappingError, (message)),
-                     (InvalidShuffilingProofError, (message))]:
+                     (InvalidShuffilingProofError, (message)),
+                     (ThresholdEncryptionSetUpStateError, (message)),
+                     (IncompatibleCommitmentError, (message)),
+                     (InvalidCommitmentError, (0, None, message))]:
         
             was_raised = False
             

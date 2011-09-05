@@ -430,8 +430,15 @@ class TestPublicKeySerialization(unittest.TestCase):
             self.assertRaises(InvalidPloneVoteCryptoFileError, 
                               PublicKey.from_file, inv_file)
                               
-    # TODO: Test loading a serialized ThresholdPublicKey
-    # (Should work as soon as ThresholdPublicKey becomes serialize-enabled)
+    def test_load_threshold(self):
+        """
+        Test that we can load a threshold public as a PublicKey object
+        """
+        file_path = os.path.join(os.path.dirname(__file__), 
+                                 "TestBasicEncryption.resources",
+                                 "test_threshold_pk.pvpubkey")
+        
+        recovered_key = PublicKey.from_file(file_path)
         
 
 class TestPrivateKeySerialization(unittest.TestCase):
