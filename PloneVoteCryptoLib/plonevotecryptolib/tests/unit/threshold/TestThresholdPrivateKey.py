@@ -145,27 +145,161 @@ class TestThresholdPrivateKey(unittest.TestCase):
         # Generate commitmes for trustees
         for i in range(self.num_trustees):
             self.commitments.append(self.tSetUp.generate_commitment())               
-        # Adding the first  trustees  commitments 
+        # Adding the  trustees  commitments 
         for i in range(self.num_trustees):
            self.tSetUp.add_trustee_commitment(i, self.commitments[i])
          
-        self.tpkey = ThresholdPublicKey(self.tSetUp.cryptosystem, 
-                                  self.tSetUp._num_trustees, 
-                                  self.tSetUp._threshold, 
-                                  key, partial_public_keys)  
- 
+        self.tpkey = self.tSetUp.generate_public_key()
             
     def test_privatekey_generation(self):
         """
         Create a new ThresholdPrivateKey, verify that is created correctly
         """
         
-        privatekey = ThresholdPrivateKey(self.tSetUp.crytosystem, 
+        privatekey = ThresholdPrivateKey(self.tSetUp.cryptosystem, 
                                          self.num_trustees,
                                          self.threshold, self.tpkey,
                                          self.trustees[0].private_key)
                                          
         # The values of the parameters must be the same we expect
-        self.assertEquals(privatekey.cryptosystem, self.tSetUp.crytosystem)
+        self.assertEquals(privatekey.cryptosystem, self.tSetUp.cryptosystem)
         self.assertEquals(privatekey.num_trustees, self.num_trustees)
-        self.assertEquals(privatekey.
+        self.assertEquals(privatekey.threshold, self.threshold)
+        self.assertEquals(privatekey.public_key, self.tpkey)
+        self.assertEquals(privatekey._key, self.trustees[0].private_key)
+                
+    def test_partial_decryption(self):
+        """
+        Create a ciphertext with the threshold public key and decrypt it and 
+        create others ciphertext to prove IncompatibleCiphertextError
+        """
+
+        tprk = self.tSetUp.generate_private_key(0, self.trustees[0].private_key)
+        text_to_encrypt_dir = os.path.join(os.path.dirname(__file__), 
+                                           "TestThresholdPrivateKey.resources")
+        text_to_encrypt = os.path.join(text_to_encrypt_dir, "text_to_encrypt")
+        text_encrypted = self.tpkey.encrypt_text(text_to_encrypt)
+        
+        # Decrypt the file created with our public key must be fine
+        tprk.generate_partial_decryption(text_encrypted)
+        
+        # Create another ThresholdEcryptuonSetUp with other 1024 bits
+        # cryptosys to create a cypthertext that cant be decrypted
+        second_cryptosys_file = os.path.join(os.path.dirname(__file__), 
+                                      "TestThresholdEncryptionSetUp.resources",
+                                      "test1024bits_second.pvcryptosys")
+        # Load the cryptosystem from file
+        second_cryptosys = EGCryptoSystem.from_file(second_cryptosys_file)      
+        secondtSetUp = ThresholdEncryptionSetUp(second_cryptosys, 
+                                          self.num_trustees, self.threshold)
+         # Adding the keys from trustees for 2ndsetUp
+        for i in range(self.num_trustees):
+            secondtSetUp.add_trustee_public_key(i, self.trustees[i].public_key)
+        secondcommitments = []
+        # Generate commitmes for trustees for 2ndsetUp
+        for i in range(self.num_trustees):
+            secondcommitments.append(secondtSetUp.generate_commitment()) 
+        # Adding the secont trustees  commitments 
+        for i in range(self.num_trustees):
+            secondtSetUp.add_trustee_commitment(i, secondcommitments[i])
+        # Generate secon cryptosis publickey
+        secondtpkey = secondtSetUp.generate_public_key()
+        # Encrypt the file with the secon cryptosis publickey
+        secondtext_encrypted = secondtpkey.encrypt_text(text_to_encrypt)
+        
+        
+        # Try to decryp something created with other ThresholdEcryptuonSetUp 
+        # must raise IncompatibleCiphertextError
+        
+        self.assertRaises(IncompatibleCiphertextError, 
+                         tprk.generate_partial_decryption, secondtext_encrypted)
+
+
+        # Create another ThresholdEcryptuonSetUp with other 512 bits
+        # cryptosys to create a cypthertext that cant be decrypted
+        third_cryptosys_file = os.path.join(os.path.dirname(__file__), 
+                                      "TestThresholdEncryptionSetUp.resources",
+                                      "test512bits.pvcryptosys")
+        # Load the cryptosystem from file
+        third_cryptosys = EGCryptoSystem.from_file(third_cryptosys_file)      
+        thirdtSetUp = ThresholdEncryptionSetUp(third_cryptosys, 
+                                          self.num_trustees, self.threshold)
+         # Adding the keys from trustees for 2ndsetUp
+        for i in range(self.num_trustees):
+            thirdtSetUp.add_trustee_public_key(i, self.trustees[i].public_key)
+        thirdcommitments = []
+        # Generate commitmes for trustees for 2ndsetUp
+        for i in range(self.num_trustees):
+            thirdcommitments.append(thirdtSetUp.generate_commitment()) 
+        # Adding the secont trustees  commitments 
+        for i in range(self.num_trustees):
+            thirdtSetUp.add_trustee_commitment(i, thirdcommitments[i])
+        # Generate secon cryptosis publickey
+        thirdtpkey = thirdtSetUp.generate_public_key()
+        # Encrypt the file with the secon cryptosis publickey
+        thirdtext_encrypted = thirdtpkey.encrypt_text(text_to_encrypt)
+        
+        
+        # Try to decryp something created with other ThresholdEcryptuonSetUp 
+        # must raise IncompatibleCiphertextError
+        
+        self.assertRaises(IncompatibleCiphertextError, 
+                         tprk.generate_partial_decryption, thirdtext_encrypted)
+
+    def test_save_load_file(self):
+        """
+        Test that we can correctly save a ThresholdPrivateKey to a file and 
+        load it back. 
+        """
+        # Get a new threshold private key object
+        pkey = self.tSetUp.generate_private_key(0, self.trustees[0].private_key)
+        
+        # Get a temporary file object using tempfile
+        (file_object, file_path) = tempfile.mkstemp()
+        
+        # We close the file descriptor since we will not be using it, instead 
+        # PublicKey's methods take the filename and open/close the file as 
+        # needed.
+        # Note that using mkstemp() instead tempfile.TemporaryFile means the 
+        # file remains in the filesystem even after it is closed.
+        os.close(file_object)
+        
+        # Save the key using to_file(...)
+        pkey.to_file(file_path)        
+        # Load it back using ThresholdPrivateKey.from_file(...)
+        recovered_key = ThresholdPrivateKey.from_file(file_path)
+        # Check that parameters and keys match (and thus they're the same key)
+        self.assertEqual(pkey.cryptosystem, recovered_key.cryptosystem)
+        self.assertEqual(pkey.num_trustees, recovered_key.num_trustees)
+        self.assertEqual(pkey.threshold, recovered_key.threshold)
+        self.assertEqual(pkey.public_key.get_fingerprint(),
+                         recovered_key.public_key.get_fingerprint())
+        self.assertEqual(pkey._key, recovered_key._key)
+        
+        # Delete the temporary file
+        os.remove(file_path)        
+        
+    def test_load_invalid_file(self):
+        """
+        Test that loading a threshold private key from a file in an invalid 
+        format raises an appropriate exception.
+        """
+        # Construct the path to the directory where our invalid test files are 
+        # located:
+        invalid_files_dir = os.path.join(os.path.dirname(__file__), 
+                                         "TestThresholdPrivateKey.resources",
+                                         "invalid_tprivatekey_xml_files")
+        
+        # Add invalid private key files as needed                               
+        for file_name in ["err_missing_pub_key_elem.pvpubkey",
+                          "err_not_valid_number_elem.pvpubkey",
+                          "err_prv_key_too_large.pvpubkey",
+                          "err_pub_key_too_large.pvpubkey",
+                          "err_par_pub_key_too_large.pvpubkey"]:
+            inv_file = os.path.join(invalid_files_dir, file_name)
+            self.assertRaises(InvalidPloneVoteCryptoFileError, 
+                              ThresholdPrivateKey.from_file, inv_file)        
+        
+
+if __name__ == '__main__':
+    unittest.main()  

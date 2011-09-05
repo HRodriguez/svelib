@@ -1,0 +1,20 @@
+<?xml version="1.0" ?>
+<PloneVoteCryptoSystem>
+	<CryptoSystemScheme>
+		<prime>
+			A7DD21FBA423F39D609C95381C74793AD063759F984F43B680977D613F2CB6F95ADEACD04350CE1AF6DF7DF46BA88004649B7A87A17421A4A25EC50B7DEA6E9B
+		</prime>
+		<nbits>
+			512
+		</nbits>
+		<generator>
+			4C3B5FE8849C65740148F2C9F40AF7DE53F210268C5F0D572B392072D15C50D4385855F5E7358AEB41A6A3F9F85B20D27ABA2871324807D53104DE557BE3B875
+		</generator>
+	</CryptoSystemScheme>
+	<name>
+		512bits_cryptosys
+	</name>
+	<description>
+		512 bits cryptsosystem used for test when diferents cryptoystem bit size are needed
+	</description>
+</PloneVoteCryptoSystem>
