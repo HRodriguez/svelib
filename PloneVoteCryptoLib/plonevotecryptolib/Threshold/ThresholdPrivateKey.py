@@ -47,12 +47,12 @@ from Crypto.Random.random import StrongRandom
 import Crypto.Hash.SHA256    # sha256 is not available in python 2.4 standard lib
 
 from plonevotecryptolib.Threshold.ThresholdPublicKey import ThresholdPublicKey
-from plonevotecryptolib.Threshold.PartialDecryption import PartialDecryption
-from plonevotecryptolib.Threshold.PartialDecryption import PartialDecryptionBlock
-from plonevotecryptolib.Threshold.PartialDecryption import PartialDecryptionBlockProof
+from plonevotecryptolib.Threshold.PartialDecryption import PartialDecryption, \
+                                                    PartialDecryptionBlock, \
+                                                    PartialDecryptionBlockProof
 
-from plonevotecryptolib.PVCExceptions import InvalidPloneVoteCryptoFileError
-from plonevotecryptolib.PVCExceptions import IncompatibleCiphertextError
+from plonevotecryptolib.PVCExceptions import InvalidPloneVoteCryptoFileError, \
+                                             IncompatibleCiphertextError
 import plonevotecryptolib.utilities.serialize as serialize
 from plonevotecryptolib.EGCryptoSystem import EGCryptoSystem
 

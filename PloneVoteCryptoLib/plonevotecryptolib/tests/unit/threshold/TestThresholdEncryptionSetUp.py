@@ -42,6 +42,7 @@
 
 # Standard library imports
 import unittest
+import copy
 import os
 import tempfile
 
@@ -129,7 +130,6 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
         self.num_trustees = 5
         self.threshold = 3
         self.trustees = []
-        self.commitments = []
         for i in range(self.num_trustees):
             self.trustees.append(Trustee())
         
@@ -223,7 +223,8 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
         commitment        
         """
         cryptosystem = get_cryptosystem()
-        
+        commitments = []     
+           
         # Generate a new instance of ThresholdEncryptionSetUp
         tSetUp = ThresholdEncryptionSetUp(cryptosystem, 
                                           self.num_trustees, self.threshold)
@@ -283,6 +284,7 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
         an get a fingerpint
         """
         cryptosystem = get_cryptosystem()
+        commitments = []
         
         # Generate a new instance of ThresholdEncryptionSetUp
         tSetUp = ThresholdEncryptionSetUp(cryptosystem, 
@@ -293,7 +295,7 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
         
         # Generate commitmes for trustees
         for i in range(self.num_trustees):
-            self.commitments.append(tSetUp.generate_commitment()) 
+            commitments.append(tSetUp.generate_commitment()) 
             
         # get_fingerprint must raise ThresholdEncryptionSetUpStateError
         # if called without added commitments
@@ -302,7 +304,7 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
                           
         # Adding the first  self.num_trustees - 1 commitments from trustees
         for i in range(self.num_trustees - 1):
-           tSetUp.add_trustee_commitment(i, self.commitments[i])
+           tSetUp.add_trustee_commitment(i, commitments[i])
            
         # get_fingerprint must raise ThresholdEncryptionSetUpStateError
         # if called without all added commitments
@@ -311,7 +313,7 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
                          
         # Add the last commitments from trustees 
         tSetUp.add_trustee_commitment(self.num_trustees - 1, 
-                                self.commitments[self.num_trustees - 1])
+                                commitments[self.num_trustees - 1])
                                 
         # Create 2 fingerpints and they must match
         fingerprint = tSetUp.get_fingerprint()
@@ -342,6 +344,7 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
         and generate a public key
         """
         cryptosystem = get_cryptosystem()
+        commitments = []
         
         # Generate a new instance of ThresholdEncryptionSetUp
         tSetUp = ThresholdEncryptionSetUp(cryptosystem, 
@@ -352,7 +355,7 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
         
         # Generate commitmes for trustees
         for i in range(self.num_trustees):
-            self.commitments.append(tSetUp.generate_commitment()) 
+            commitments.append(tSetUp.generate_commitment()) 
             
         # generate_commitment must raise ThresholdEncryptionSetUpStateError
         # if called without added commitments
@@ -361,7 +364,7 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
                           
         # Adding the first  self.num_trustees - 1 commitments from trustees
         for i in range(self.num_trustees - 1):
-           tSetUp.add_trustee_commitment(i, self.commitments[i])
+           tSetUp.add_trustee_commitment(i, commitments[i])
            
         # generate_commitment must raise ThresholdEncryptionSetUpStateError
         # if called without all added commitments
@@ -370,7 +373,7 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
                          
         # Add the last commitments from trustees 
         tSetUp.add_trustee_commitment(self.num_trustees - 1, 
-                                self.commitments[self.num_trustees - 1])
+                                commitments[self.num_trustees - 1])
                                 
         publickey = tSetUp.generate_public_key()
         
@@ -393,6 +396,7 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
         and generate a key par
         """
         cryptosystem = get_cryptosystem()
+        commitments = []
         
         # Generate a new instance of ThresholdEncryptionSetUp
         tSetUp = ThresholdEncryptionSetUp(cryptosystem, 
@@ -403,7 +407,7 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
         
         # Generate commitmes for trustees
         for i in range(self.num_trustees):
-            self.commitments.append(tSetUp.generate_commitment()) 
+            commitments.append(tSetUp.generate_commitment()) 
             
         # generate_key_pair must raise ThresholdEncryptionSetUpStateError
         # if called without added commitments
@@ -413,7 +417,7 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
                           
         # Adding the first  self.num_trustees - 1 commitments from trustees
         for i in range(self.num_trustees - 1):
-           tSetUp.add_trustee_commitment(i, self.commitments[i])
+           tSetUp.add_trustee_commitment(i, commitments[i])
            
         # generate_key_pair must raise ThresholdEncryptionSetUpStateError
         # if called without all added commitments
@@ -423,9 +427,9 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
                          
         # Add the last commitments from trustees 
         tSetUp.add_trustee_commitment(self.num_trustees - 1, 
-                                self.commitments[self.num_trustees - 1])
+                                commitments[self.num_trustees - 1])
                                 
-        # Must fail if the trustee doenst have his corresponding private_key
+        # Must fail if the trustee doesn't have his corresponding private_key
         self.assertRaises(InvalidCommitmentError,tSetUp.generate_key_pair,
                           0,self.trustees[1].private_key)
        
@@ -433,39 +437,23 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
         # How to test malicious commitmens or invalid ones                
         keypar = tSetUp.generate_key_pair(0,self.trustees[0].private_key)
         
-        # Create a second ThresholdEcryptionSetUp to create a second
-        # thresold ebcryption set up and generate errors
-        second_cryptosys_file = os.path.join(os.path.dirname(__file__), 
-                                      "TestThresholdEncryptionSetUp.resources",
-                                      "test1024bits_second.pvcryptosys")
-        # Load the cryptosystem from file
-        second_cryptosys = EGCryptoSystem.from_file(second_cryptosys_file)      
-        secondtSetUp = ThresholdEncryptionSetUp(second_cryptosys, 
-                                          self.num_trustees, self.threshold)
-         # Adding the keys from trustees for 2ndsetUp
-        for i in range(self.num_trustees):
-            secondtSetUp.add_trustee_public_key(i, self.trustees[i].public_key)
+        # Test that InvalidCommitmentError is raised when given corrupt or 
+        # malformed commitments.
+        replaced_idx = 1
+        malformed_commitment = copy.deepcopy(commitments[replaced_idx])
         
-        secondcommitments = []
-        # Generate commitmes for trustees for 2ndsetUp
-        for i in range(self.num_trustees):
-            secondcommitments.append(secondtSetUp.generate_commitment())       
+        # We swap the first two public coefficients of the commitment, this 
+        # generates an inconsistency between the stored public coefficients and 
+        # the encrypted partial private keys.
+        temp = malformed_commitment.public_coefficients[1]
+        malformed_commitment.public_coefficients[1] = \
+            malformed_commitment.public_coefficients[0]
+        malformed_commitment.public_coefficients[0] = temp
         
-        # Must raise InvalidCommitmentError becouse we adding an invalid
-        # commitment
-        commitemp = tSetUp._trustees_commitments[0]
-        tSetUp._trustees_commitments[0] = secondcommitments[0]     
-        self.assertRaises(InvalidCommitmentError,tSetUp.generate_key_pair,
-                          0,self.trustees[0].private_key)
-        tSetUp._trustees_commitments[0] = commitemp
-                          
-        # Must Raise InvalidCommitmentError becouse we are modifying a
-        # public coefficient from a trustee
-        tSetUp._trustees_commitments[0].public_coefficients[0] = 2;
-        self.assertRaises(InvalidCommitmentError,tSetUp.generate_key_pair,
-                          0,self.trustees[0].private_key)                          
-        
-            
+        tSetUp.add_trustee_commitment(replaced_idx, malformed_commitment)
+        self.assertRaises(InvalidCommitmentError, tSetUp.generate_key_pair, 
+                          1, self.trustees[1].private_key)
+                                   
         
              
     def test_generate_privatekey(self):
@@ -475,6 +463,7 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
         and generate a private key
         """
         cryptosystem = get_cryptosystem()
+        commitments = []
         
         # Generate a new instance of ThresholdEncryptionSetUp
         tSetUp = ThresholdEncryptionSetUp(cryptosystem, 
@@ -485,7 +474,7 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
         
         # Generate commitmes for trustees
         for i in range(self.num_trustees):
-            self.commitments.append(tSetUp.generate_commitment()) 
+            commitments.append(tSetUp.generate_commitment()) 
             
         # generate_private_key must raise ThresholdEncryptionSetUpStateError
         # if called without added commitments
@@ -495,7 +484,7 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
                           
         # Adding the first  self.num_trustees - 1 commitments from trustees
         for i in range(self.num_trustees - 1):
-           tSetUp.add_trustee_commitment(i, self.commitments[i])
+           tSetUp.add_trustee_commitment(i, commitments[i])
            
         # generate_private_key must raise ThresholdEncryptionSetUpStateError
         # if called without all added commitments
@@ -505,7 +494,7 @@ class TestThresholdEncryptionSetUp(unittest.TestCase):
                          
         # Add the last commitments from trustees 
         tSetUp.add_trustee_commitment(self.num_trustees - 1, 
-                                self.commitments[self.num_trustees - 1])
+                                commitments[self.num_trustees - 1])
                                 
         # Must fail if the trustee doenst have his corresponding private_key
         self.assertRaises(InvalidCommitmentError,tSetUp.generate_private_key,

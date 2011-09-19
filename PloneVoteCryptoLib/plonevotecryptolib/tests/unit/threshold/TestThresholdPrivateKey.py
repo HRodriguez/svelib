@@ -246,6 +246,36 @@ class TestThresholdPrivateKey(unittest.TestCase):
         self.assertRaises(IncompatibleCiphertextError, 
                          tprk.generate_partial_decryption, thirdtext_encrypted)
 
+    def test_partial_decryption_w_task_monitor(self):
+        """
+        Test that partial decryption can be monitored using a TaskMonitor 
+        object.
+        """
+        # Get a new task monitor and a counter
+        task_monitor = TaskMonitor()
+        partialDecryptionCounter = Counter()
+        
+        # Register a task monitor callback to increment the counter once 
+        # for each 5% progress of partial decryption
+        def partial_decryption_callback(tm):
+            partialDecryptionCounter.increment()
+        
+        task_monitor.add_on_progress_percent_callback(
+                            partial_decryption_callback, percent_span = 5.0)
+        
+        # Generate a partial decryption passing the task_monitor object
+        
+        tprk = self.tSetUp.generate_private_key(0, self.trustees[0].private_key)
+        text_to_encrypt_dir = os.path.join(os.path.dirname(__file__), 
+                                           "TestThresholdPrivateKey.resources")
+        text_to_encrypt = os.path.join(text_to_encrypt_dir, "text_to_encrypt")
+        text_encrypted = self.tpkey.encrypt_text(text_to_encrypt)        
+        tprk.generate_partial_decryption(text_encrypted, task_monitor)
+        
+        
+        # Check that the counter has been incremented 100/5 = 20 times
+        self.assertEqual(partialDecryptionCounter.value, 20)
+
     def test_save_load_file(self):
         """
         Test that we can correctly save a ThresholdPrivateKey to a file and 
